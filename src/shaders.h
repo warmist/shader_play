@@ -40,3 +40,5 @@ struct program{
 };
 
 std::vector<program> enum_programs();
+void free_programs(std::vector<program>& programs);
+void update_programs(std::vector<program>& programs);

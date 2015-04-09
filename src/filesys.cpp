@@ -29,3 +29,26 @@ std::vector<std::string> enum_files(const std::string& path)
     FindClose(hFind);
     return ret;
 }
+
+dir_watcher::dir_watcher(const std::string& path)
+{
+    change_handle = FindFirstChangeNotification(path.c_str(), false, FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_LAST_WRITE);
+}
+dir_watcher::~dir_watcher()
+{
+    FindCloseChangeNotification(change_handle);
+}
+
+bool dir_watcher::check_changes()
+{
+    unsigned long  stat = WaitForSingleObject(change_handle, 0);
+    if (stat == WAIT_TIMEOUT)
+    {
+        return false;
+    }
+    if (FindNextChangeNotification(change_handle) == FALSE)
+    {
+        throw std::runtime_error("Find next change failed");
+    }
+    return true;
+}

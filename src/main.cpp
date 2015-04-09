@@ -7,6 +7,7 @@
 
 #include "shaders.h"
 #include <string>
+#include "filesys.h"
 
 static void error_callback(int error, const char* description)
 {
@@ -65,15 +66,39 @@ int main(int, char**)
     program* current_program = nullptr;
     
     std::vector<program> programs = enum_programs();
-
+    dir_watcher watcher("shaders");
     // Main loop
     float time = 0;
+    int recompile_timer = 0;
     while (!glfwWindowShouldClose(window))
     {
         ImGuiIO& io = ImGui::GetIO();
         time += io.DeltaTime;
         glfwPollEvents();
-
+        if (watcher.check_changes()) //double triggered, maybe sometimes file is in use and can't be opened when it happens
+        {
+            recompile_timer = 100;
+        }
+        if (recompile_timer == 1)
+        {
+            recompile_timer = 0;
+            glUseProgram(0);
+            std::string p_name;
+            if (current_program != nullptr)
+                p_name = current_program->name;
+            update_programs(programs);
+            current_program = nullptr;
+            for (auto& p : programs)
+            {
+                if (p.name == p_name)
+                {
+                    current_program = &p;
+                    break;
+                }
+            }
+        }
+        if (recompile_timer > 1)
+            recompile_timer--;
         ImGui_ImplGlfwGL3_NewFrame();
 
         {
@@ -93,6 +118,7 @@ int main(int, char**)
 
                         ImGui::Text("Program id: %d", p.id);
                         print_prog_status(p.status);
+                        ImGui::Separator();
                         for (const shader& s : p.shaders)
                         {
                             ImGui::Text("Shader: %s(%s) Id:%d", s.name.c_str(), s.type_name.c_str(), s.id);
@@ -104,7 +130,7 @@ int main(int, char**)
                     {
                         if (current_program == &p)
                         {
-                            current_program = 0;
+                            current_program = nullptr;
                         }
                         else
                         {

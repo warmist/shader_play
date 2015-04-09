@@ -29,6 +29,7 @@ shader_meta_info extract_info(const std::string& path)
     std::fstream fs(path);
     std::string line;
     const std::string PROGNAME = "//!program";
+    const std::string PROGNAME = "//!include";
     while (std::getline(fs, line))
     {
         std::stringstream ss(line);
@@ -142,4 +143,19 @@ std::vector<program> enum_programs()
         ret.push_back(init_program(it->second, it->first));
     }
     return ret;
+}
+void free_programs(std::vector<program>& programs)
+{
+    for (auto p : programs)
+    {
+        for (auto s : p.shaders)
+        {
+            glDeleteShader(s.id);
+        }
+        glDeleteProgram(p.id);
+    }
+}
+void update_programs(std::vector<program>& programs)
+{
+    programs = enum_programs(); //super simple?
 }
