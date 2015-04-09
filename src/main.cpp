@@ -150,6 +150,7 @@ int main(int, char**)
             glUseProgram(current_program->id);
             glUniform2f(current_program->get_uniform(predefined_uniforms::resolution), io.DisplaySize.x, io.DisplaySize.y);
             glUniform1f(current_program->get_uniform(predefined_uniforms::time), time);
+            glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownTime[0]);
         }
         else
             glUseProgram(0);

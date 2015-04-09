@@ -29,7 +29,6 @@ shader_meta_info extract_info(const std::string& path)
     std::fstream fs(path);
     std::string line;
     const std::string PROGNAME = "//!program";
-    const std::string PROGNAME = "//!include";
     while (std::getline(fs, line))
     {
         std::stringstream ss(line);
@@ -70,7 +69,34 @@ struct shader_info{
     shader s;
     shader_meta_info sm;
 };
-
+std::string load_shader(const std::string& path)
+{
+    std::fstream fs(path);
+    std::string ret;
+    std::string line;
+    const std::string INCLUDE = "//!include";
+    int line_counter = 0;
+    while (std::getline(fs, line))
+    {
+        std::stringstream ss(line);
+        std::string token;
+        ss >> token;
+        if (token == INCLUDE)
+        {
+            ss >> token;
+            ret += load_shader(token);
+            ret += "\n#line ";
+            ret += std::to_string(line_counter + 1);
+            ret += "\n";
+        }
+        else
+        {
+            ret += line;
+            ret += "\n";
+        }
+    }
+    return ret;
+}
 program init_program(const std::vector<shader_info>& prog_shaders,const std::string& name)
 {
     program ret;
@@ -81,10 +107,8 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
     {
         const shader& ts = info.s;
         GLuint s_id = glCreateShader(info.sm.gl_type);
-        std::fstream fs(info.s.path);
-
-        std::istreambuf_iterator<char> eos;
-        std::string s(std::istreambuf_iterator<char>(fs), eos);
+        
+        std::string s = load_shader(info.s.path);
         const char *p = s.c_str();
         const GLint l = s.length();
 
@@ -118,6 +142,7 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
     }
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::resolution)] = glGetUniformLocation(ret.id, "eng_resolution");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::time)] = glGetUniformLocation(ret.id, "eng_time");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::mouse)] = glGetUniformLocation(ret.id, "eng_mouse");
     //TODO: error check here
     return ret;
 }
