@@ -21,6 +21,7 @@ SET(SRCS
     src/imgui_impl_glfw_gl3.cpp
 
     src/filesys.cpp
+    src/shaders.cpp
     src/main.cpp
 )
 SET(HDRS
@@ -36,6 +37,7 @@ SET(HDRS
     src/imgui_impl_glfw_gl3.h
 
     src/filesys.h
+    src/shaders.h
 )
 
 INCLUDE_DIRECTORIES(src)
@@ -47,4 +49,5 @@ INCLUDE_DIRECTORIES(${GLFW}/include)
 link_directories(${GLFW}/lib)
 ADD_EXECUTABLE(shay_play ${SRCS} ${HDRS})
 TARGET_LINK_LIBRARIES(shay_play ${GLFW_LIBS} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
+
 
