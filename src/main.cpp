@@ -90,7 +90,7 @@ int main(int, char**)
             current_program = nullptr;
             for (auto& p : programs)
             {
-                if (p.name == p_name)
+                if (p.status.result && p.name == p_name)
                 {
                     current_program = &p;
                     break;
