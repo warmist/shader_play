@@ -94,7 +94,7 @@ struct shader_info{
     shader s;
     shader_meta_info sm;
 };
-std::string load_shader(const std::string& path)
+std::string load_shader(const std::string& path) //TODO: add unique id for each shader for debug
 {
     std::fstream fs(path);
     std::string ret;
@@ -103,23 +103,24 @@ std::string load_shader(const std::string& path)
     int line_counter = 0;
     while (std::getline(fs, line))
     {
+        line_counter++;
         std::stringstream ss(line);
         std::string token;
         ss >> token;
         if (token == INCLUDE)
         {
             ss >> token;
+            ret += "\n#line 1 10\n";
             ret += load_shader("shaders/"+token);
             ret += "\n#line ";
             ret += std::to_string(line_counter + 1);
-            ret += "\n";
+            ret += "0\n";
         }
         else
         {
             ret += line;
             ret += "\n";
         }
-        line_counter++; 
     }
     return ret;
 }

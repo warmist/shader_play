@@ -5,7 +5,7 @@
 
 vec2 sdf(vec3 p)
 {
-	float c=pMod1(p.x,8);
+	float c=pMod2(p.x,8);
 	float g=pMod1(p.y,8);
 	
 
