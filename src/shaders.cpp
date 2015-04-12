@@ -85,6 +85,8 @@ uniform parse_uniform(const std::string& line)
             ret.type = uniform_type::t_vec3_norm;
         if (token == "//!clamp" && ret.type == uniform_type::t_vec3)
             ret.type = uniform_type::t_vec3_clamp;
+        if (token == "//!clamp" && ret.type == uniform_type::t_float)
+            ret.type = uniform_type::t_float_clamp;
     }
     return ret;
 }
@@ -114,7 +116,7 @@ std::string load_shader(const std::string& path) //TODO: add unique id for each 
             ret += load_shader("shaders/"+token);
             ret += "\n#line ";
             ret += std::to_string(line_counter + 1);
-            ret += "0\n";
+            ret += " 0\n";
         }
         else
         {

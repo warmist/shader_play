@@ -188,7 +188,7 @@ int main(int, char**)
     dir_watcher watcher("shaders");
     // Main loop
     float time = 0;
-    int recompile_timer = 0;
+    float recompile_timer = 0;
     bool first_down_frame = true;
     while (!glfwWindowShouldClose(window))
     {
@@ -198,9 +198,9 @@ int main(int, char**)
         glfwPollEvents();
         if (watcher.check_changes()) //double triggered, maybe sometimes file is in use and can't be opened when it happens
         {
-            recompile_timer = 15; //TODO: probably needs timer not counter here
+            recompile_timer = time+0.5; //TODO: probably needs timer not counter here
         }
-        if (recompile_timer == 1)
+        if (recompile_timer <= time && recompile_timer != 0)
         {
             recompile_timer = 0;
             glUseProgram(0);
@@ -218,8 +218,6 @@ int main(int, char**)
                 }
             }
         }
-        if (recompile_timer > 1)
-            recompile_timer--;
         ImGui_ImplGlfwGL3_NewFrame();
 
         {
@@ -257,6 +255,9 @@ int main(int, char**)
                         {
                         case uniform_type::t_float:
                             ImGui::InputFloat(u.name.c_str(), &u.data.f);
+                            break;
+                        case uniform_type::t_float_clamp:
+                            ImGui::SliderFloat(u.name.c_str(), &u.data.f,0,1);
                             break;
                         case uniform_type::t_vec3:
                             ImGui::InputFloat3(u.name.c_str(), u.data.f3);
@@ -333,6 +334,7 @@ int main(int, char**)
                 switch (u.type)
                 {
                 case uniform_type::t_float:
+                case uniform_type::t_float_clamp:
                     glUniform1f(u.id, u.data.f);
                     break;
                 case uniform_type::t_vec3:
