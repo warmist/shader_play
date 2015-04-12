@@ -15,9 +15,18 @@ uniform mat4 eng_modelview;
 uniform mat4 eng_projection_inv;
 uniform mat4 eng_modelview_inv;
 
-//custom uniforms
+//custom uniforms 
 uniform float plane_pos;
+uniform vec3 light_dir; //!norm
+//hash from: https://www.shadertoy.com/view/XlfGWN
+#define MOD2 vec2(.16632,.17369)
 
+float hash12(vec2 p)
+{
+	p  = fract(p * MOD2);
+    p += dot(p.xy, p.yx+19.19);
+    return fract(p.x * p.y);
+}
 // polynomial smooth min (k = 0.1);
 float smin( float a, float b, float k )
 {
@@ -46,6 +55,10 @@ float sdPlane(vec3 p)
 	return p.y;
 }
 float sdSphere(vec3 p,float s)
+{
+	return length(p)-s;
+}
+float sdCylinder(vec2 p,float s)
 {
 	return length(p)-s;
 }
@@ -104,18 +117,30 @@ vec2 opUnion(vec2 a,vec2 b)
 	return (a.x<b.x)?(a):(b);
 }
 
-
+void pMirror2(inout vec2 p,vec2 d)
+{
+	p=abs(p)-d;
+	if(p.x>p.y)
+		p.xy=p.yx;
+}
 
 
 vec2 sdf(vec3 p)
 {
+	float pl=sdPlane(p+vec3(0,10,0));
+	pMirror2(p.xz,vec2(32,32));
+	pMirror2(p.xz,vec2(16,16));
+
 	float c=pMod1(p.x,8);
 	//float g=pMod1(p.z,18);
 	float box1=sdBox2(p.xz,vec2(1,1));
-	float box2=sdBox2(p.xz,vec2(4,0.5));
-	float sp=max(sdSphere(p+vec3(0,-5,0),2),sdBox2(p.xz,vec2(4,0.2)));
-	float windows=opDivideChampfer(box2,box1,0.25);
-	return vec2(min(sp,windows),abs(c+2));
+	float box2=sdBox2(p.xz,vec2(4,0.25));
+	float g=pMod1(p.y,10);
+	float r=hash12(vec2(c,g));
+	float rr=1+r*1.5;
+	float sp=min(max(sdCylinder(p.xy,rr),sdBox2(p.xz,vec2(4,0.3))),sdBox(p+vec3(0,rr,0),vec3(rr,rr,0.7)));
+	float windows=-min(-box2,sp);//-min(box2,-sp);
+	return opUnion(vec2(windows,abs(c+g*7.5+2)),vec2(pl,13));
 	//return opUnion(vec2(sdSphere(p-vec3(3,0,0),3),1.0),vec2(sdSphere(p,4),2.0));
 }
 
@@ -146,7 +171,6 @@ void main(){
 	pos_eye=eng_modelview_inv*pos_eye;
 
 
-	vec3 light=normalize(vec3(0.2,0.4,0.3));
 
 	int count=0;
 	float t=0.01;
@@ -165,6 +189,8 @@ void main(){
 		count=i;
 	}
 	if( t>tmax ) mat=0;
+	color=vec3(float(count)/float(MAX_ITER),0,0);
+	return;
 	if(mat>0)
 	{
 		vec3 hit_pos=pos_eye.xyz+t*ray_world;
@@ -172,7 +198,7 @@ void main(){
 
 		vec3 col=vec3(clamp(sin(mat*15.2+77.2)*0.5+0.5,0,1),clamp(sin(mat+666)*0.5+0.5,0,1),clamp(sin(mat*1337.0152+12.0)*0.5+0.5,0,1));
 
-		float diffuse=clamp(dot(norm,light),0,1);
+		float diffuse=clamp(dot(norm,light_dir),0,1);
 		vec3 ambient=vec3(0.2,0.2,0.2)*col;
 		color=col*diffuse+ambient;
 	}
