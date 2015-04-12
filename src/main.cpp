@@ -69,8 +69,8 @@ void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
 }
 void handle_mouse(Camera& p, float dx, float dy)
 {
-    Eigen::Quaternionf q = Eigen::AngleAxisf((float)dx*M_PI, Eigen::Vector3f::UnitY())
-        * Eigen::AngleAxisf((float)-dy*M_PI, Eigen::Vector3f::UnitX());
+    Eigen::Quaternionf q = Eigen::AngleAxisf(float(dx*M_PI), Eigen::Vector3f::UnitY())
+        * Eigen::AngleAxisf(float(-dy*M_PI), Eigen::Vector3f::UnitX());
     p.rotateAroundTarget(q);
 }
 void renorm(float* data, int id_fixed)
@@ -198,7 +198,7 @@ int main(int, char**)
         glfwPollEvents();
         if (watcher.check_changes()) //double triggered, maybe sometimes file is in use and can't be opened when it happens
         {
-            recompile_timer = time+0.5; //TODO: probably needs timer not counter here
+            recompile_timer = time+0.5f; //TODO: probably needs timer not counter here
         }
         if (recompile_timer <= time && recompile_timer != 0)
         {
@@ -294,7 +294,7 @@ int main(int, char**)
             ImGui::End();
         }
         handle_keys(window, player, io.DeltaTime);
-        player.setViewport(io.DisplaySize.x, io.DisplaySize.y);
+        player.setViewport(unsigned(io.DisplaySize.x), unsigned(io.DisplaySize.y));
         if (io.MouseDown[0] && !io.MouseDownOwned[0])
             handle_mouse(player, io.MouseDelta.x / io.DisplaySize.x, -io.MouseDelta.y / io.DisplaySize.y);
         
@@ -332,12 +332,12 @@ int main(int, char**)
             for (const auto& u : current_program->uniforms)
             {
                 switch (u.type)
-                {
+                { 
                 case uniform_type::t_float:
                 case uniform_type::t_float_clamp:
                     glUniform1f(u.id, u.data.f);
                     break;
-                case uniform_type::t_vec3:
+                case uniform_type::t_vec3: 
                 case uniform_type::t_vec3_clamp:
                 case uniform_type::t_vec3_norm:
                     glUniform3fv(u.id, 1, u.data.f3);

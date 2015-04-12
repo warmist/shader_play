@@ -7,7 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 SET(IMGUI CACHE PATH "Path to imgui")
 SET(GL3W "libs/gl3w" CACHE PATH "Path to gl3w")
-SET(GLFW "C:/Users/darius/Projects/glfw-3.1.1/install" CACHE PATH "Path to glfw")
+SET(GLFW "../glfw-3.1.1/install" CACHE PATH "Path to glfw")
 
 find_package(OpenGL REQUIRED)
 FIND_PACKAGE(Eigen3 REQUIRED)
