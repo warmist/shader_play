@@ -23,10 +23,10 @@ GLuint get_gl_shader_type(const std::string& type)
     //TODO: maybe support tesselation shaders
     return 0;
 }
-shader_meta_info extract_info(const std::string& path)
+shader_meta_info extract_info(const std::string& prog)
 {
     shader_meta_info ret;
-    std::fstream fs(path);
+    std::stringstream fs(prog);
     std::string line;
     const std::string PROGNAME = "//!program";
     while (std::getline(fs, line))
@@ -88,19 +88,7 @@ uniform parse_uniform(const std::string& line)
     }
     return ret;
 }
-std::vector<shader> enum_shaders()
-{
-    auto file_list = enum_files("shaders/*.glsl");
-    std::vector<shader> ret;
-    for (auto f : file_list)
-    {
-        shader s;
-        s.path = "shaders/" + f;
-        s.name = f;
-        ret.push_back(s);
-    }
-    return ret;
-}
+
 
 struct shader_info{
     shader s;
@@ -121,7 +109,7 @@ std::string load_shader(const std::string& path)
         if (token == INCLUDE)
         {
             ss >> token;
-            ret += load_shader(token);
+            ret += load_shader("shaders/"+token);
             ret += "\n#line ";
             ret += std::to_string(line_counter + 1);
             ret += "\n";
@@ -131,6 +119,21 @@ std::string load_shader(const std::string& path)
             ret += line;
             ret += "\n";
         }
+        line_counter++; 
+    }
+    return ret;
+}
+std::vector<shader> enum_shaders()
+{
+    auto file_list = enum_files("shaders/*.glsl");
+    std::vector<shader> ret;
+    for (auto f : file_list)
+    {
+        shader s;
+        s.path = "shaders/" + f;
+        s.name = f;
+        s.program = load_shader(s.path);
+        ret.push_back(s);
     }
     return ret;
 }
@@ -172,13 +175,13 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
     {
         const shader& ts = info.s;
         GLuint s_id = glCreateShader(info.sm.gl_type);
-        
-        std::string s = load_shader(info.s.path);
-        const char *p = s.c_str();
-        const GLint l = s.length();
+
+        const char *p = ts.program.c_str();
+        const GLint l = ts.program.length();
 
         ret.shaders.push_back(ts);
         shader &tmp_s = ret.shaders.back();
+       
         tmp_s.id = s_id;
         tmp_s.type_name = info.sm.type;
 
@@ -227,7 +230,7 @@ std::vector<program> enum_programs()
     uniform_map_type uniform_map;
     for (const shader& s : shaders)
     {
-        shader_meta_info info = extract_info(s.path);
+        shader_meta_info info = extract_info(s.program);
         if (info.program == "")//TODO: throw error here?
             continue;
         shader_info si;

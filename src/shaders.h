@@ -16,6 +16,8 @@ struct shader{
     std::string path;
     std::string name;
 
+    std::string program;
+
     GLuint id = -1;
     GLuint type = -1;
     std::string type_name;//TODO: maybe a function here?

@@ -1,8 +1,8 @@
-//!program raymarch fragment
+
 //inspired by: https://www.shadertoy.com/view/Xds3zN and amboss by mercury demogroup
 // also from http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 // amboss: https://www.youtube.com/watch?v=s8nFqwOho-s
-#version 330
+
 
 #define MAX_ITER 6400
 
@@ -18,124 +18,6 @@ uniform mat4 eng_modelview_inv;
 //custom uniforms 
 uniform float plane_pos;
 uniform vec3 light_dir; //!norm
-//hash from: https://www.shadertoy.com/view/XlfGWN
-#define MOD2 vec2(.16632,.17369)
-
-float hash12(vec2 p)
-{
-	p  = fract(p * MOD2);
-    p += dot(p.xy, p.yx+19.19);
-    return fract(p.x * p.y);
-}
-// polynomial smooth min (k = 0.1);
-float smin( float a, float b, float k )
-{
-    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
-    return mix( b, a, h ) - k*h*(1.0-h);
-}
-
-float udBox( vec3 p, vec3 b )
-{
-  return length(max(abs(p)-b,0.0));
-}
-float sdBox( vec3 p, vec3 b )
-{
-  vec3 d = abs(p) - b;
-  return min(max(d.x,max(d.y,d.z)),0.0) +
-         length(max(d,0.0));
-}
-float sdBox2( vec2 p, vec2 b )
-{
-  vec2 d = abs(p) - b;
-  return min(max(d.x,d.y),0.0) +
-         length(max(d,0.0));
-}
-float sdPlane(vec3 p)
-{
-	return p.y;
-}
-float sdSphere(vec3 p,float s)
-{
-	return length(p)-s;
-}
-float sdCylinder(vec2 p,float s)
-{
-	return length(p)-s;
-}
-float sdSomething(vec3 p,float s)
-{
-	return dot(sin(p),cos(p));
-}
-float opCombineChampfer(float a,float b,float r)
-{
-	float m=min(a,b);
-	if(a<r && b<r)
-	{
-		float d=(a+b-r);
-		return min(m,d);
-	}
-	else
-		return m;
-}
-float opCombine(float a,float b,float r)
-{
-	float m=min(a,b);
-	if(a<r && b<r)
-	{
-		return min(m,r-sqrt((r-a)*(r-a)+(r-b)*(r-b)));
-	}
-	else
-		return m;
-}
-float opDivide(float a,float b,float r)
-{
-	return -opCombine(-a,b,r);
-}
-float opDivideChampfer(float a,float b,float r)
-{
-	return -opCombineChampfer(-a,b,r);
-}
-float opSmoothUnionIntersect(float a,float b,float v)
-{
-	float mMax=max(a,b);
-	float mMin=min(a,b);
-	return mMax*v+mMin*(1-v);
-}
-float opUnionSimple(float a,float b)
-{
-	return min(a,b);
-}
-float pMod1(inout float p,float size)
-{
-	float halfsize=size*0.5;
-	float c= floor((p+halfsize)/size);
-	p=mod(p+halfsize,size)-halfsize;
-	return c;
-}
-vec2 opUnion(vec2 a,vec2 b)
-{
-	return (a.x<b.x)?(a):(b);
-}
-
-void pMirror2(inout vec2 p,vec2 d)
-{
-	p=abs(p)-d;
-	if(p.x>p.y)
-		p.xy=p.yx;
-}
-
-
-vec2 sdf(vec3 p)
-{
-	float c=pMod1(p.x,8);
-	float g=pMod1(p.y,8);
-	
-
-	float box1=sdBox2(p.xz,vec2(1,abs(c*c)*0.15+0.15));
-	float box2=sdBox2(p.yz,vec2(1,abs(g*g)*0.15+0.15));
-
-	return vec2(min(box1,box2),abs(c+5*g+8));
-}
 
 vec2 map(vec3 p)
 {
