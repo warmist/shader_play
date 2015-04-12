@@ -24,7 +24,20 @@ struct shader{
 
     
 };
+enum class uniform_type{
+    t_float,t_vec3,t_vec3_norm,t_vec3_clamp, last
+};
+struct uniform{
+    GLuint id = -1;
 
+    std::string name;
+    uniform_type type;
+
+    union{
+        float f;
+        float f3[3];
+    } data;
+};
 struct program{
     std::string name;
 
@@ -37,6 +50,7 @@ struct program{
     GLint get_uniform(predefined_uniforms u){
         return predef_uniforms[static_cast<int>(u)];
     }
+    std::vector<uniform> uniforms;
 };
 
 std::vector<program> enum_programs();

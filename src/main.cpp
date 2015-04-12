@@ -36,9 +36,9 @@ void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
 #define KY_PRESS(KEY) if(glfwGetKey(window, KEY) == GLFW_PRESS)
     KY_PRESS(GLFW_KEY_W)
         //p.localTranslate(p.direction() *move_speed);
-        p.zoom(0.01);
+        p.zoom(0.01f);
     KY_PRESS(GLFW_KEY_S)
-        p.zoom(-0.01);
+        p.zoom(-0.01f);
         //p.localTranslate(-p.direction() *move_speed);
     KY_PRESS(GLFW_KEY_A)
         p.localTranslate(p.right() *move_speed);
@@ -61,9 +61,72 @@ void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
 }
 void handle_mouse(Camera& p, float dx, float dy)
 {
-    Eigen::Quaternionf q = Eigen::AngleAxisf(dx*M_PI, Eigen::Vector3f::UnitY())
-        * Eigen::AngleAxisf(-dy*M_PI, Eigen::Vector3f::UnitX());
+    Eigen::Quaternionf q = Eigen::AngleAxisf((float)dx*M_PI, Eigen::Vector3f::UnitY())
+        * Eigen::AngleAxisf((float)-dy*M_PI, Eigen::Vector3f::UnitX());
     p.rotateAroundTarget(q);
+}
+void renorm(float* data, int id_fixed)
+{
+    
+    float sum = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        if (i != id_fixed)
+            sum += data[i] * data[i];
+    }
+    float fixed = data[id_fixed];
+    float trg = 1 - fixed*fixed;
+    if (fixed == 1)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (i != id_fixed)
+                data[i] = 0;
+        }
+    }
+    else
+    {
+        sum = sqrt(sum);
+        if (sum < std::numeric_limits<float>::epsilon())
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (i != id_fixed)
+                {
+                    data[i] = sqrt(trg);
+                    return;
+                }
+            }
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            if (i != id_fixed)
+                data[i] = (data[i] / sum)*sqrt(trg);
+        }
+    }
+}
+bool normalized_slider3(const char* label, float* data)
+{
+    float arr[3];
+    for (int i = 0; i < 3; i++)
+    {
+        if (data[i] != data[i])
+            data[i] = 0;
+        arr[i] = data[i];
+    }
+    if (ImGui::SliderFloat3(label, data, -1, 1))
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (arr[i] != data[i])
+            {
+                renorm(data, i);
+                return true;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 int main(int, char**)
 {
@@ -183,6 +246,27 @@ int main(int, char**)
                             ImGui::Separator();
                         }
                     }
+                    for (auto& u : p.uniforms)
+                    {
+                        switch (u.type)
+                        {
+                        case uniform_type::t_float:
+                            ImGui::InputFloat(u.name.c_str(), &u.data.f);
+                            break;
+                        case uniform_type::t_vec3:
+                            ImGui::InputFloat3(u.name.c_str(), u.data.f3);
+                            break;
+                        case uniform_type::t_vec3_clamp:
+                            ImGui::SliderFloat3(u.name.c_str(), u.data.f3,0,1);
+                            break;
+                        case uniform_type::t_vec3_norm:
+                            normalized_slider3(u.name.c_str(), u.data.f3);
+                            break;
+                        default:
+                            ImGui::Text("Unsupported uniform:%s", u.name.c_str());
+                        }
+                        
+                    }
                     if (p.status.result && ImGui::Checkbox("Use", &is_current))
                     {
                         if (current_program == &p)
@@ -194,6 +278,7 @@ int main(int, char**)
                             current_program = &p;
                         }
                     }
+                    
                     ImGui::Unindent();
                     //for each uniform do sth...
                     ImGui::PopID();
@@ -238,6 +323,20 @@ int main(int, char**)
             glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownTime[0]);
             player.activateGL(current_program->get_uniform(predefined_uniforms::projection), current_program->get_uniform(predefined_uniforms::modelview),
                 current_program->get_uniform(predefined_uniforms::projection_inv), current_program->get_uniform(predefined_uniforms::modelview_inv));
+            for (const auto& u : current_program->uniforms)
+            {
+                switch (u.type)
+                {
+                case uniform_type::t_float:
+                    glUniform1f(u.id, u.data.f);
+                    break;
+                case uniform_type::t_vec3:
+                case uniform_type::t_vec3_clamp:
+                case uniform_type::t_vec3_norm:
+                    glUniform3fv(u.id, 1, u.data.f3);
+                default:;
+                }
+            }
         }
         else
             glUseProgram(0);
