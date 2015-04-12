@@ -143,6 +143,10 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::resolution)] = glGetUniformLocation(ret.id, "eng_resolution");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::time)] = glGetUniformLocation(ret.id, "eng_time");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::mouse)] = glGetUniformLocation(ret.id, "eng_mouse");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::projection)] = glGetUniformLocation(ret.id, "eng_projection");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::modelview)] = glGetUniformLocation(ret.id, "eng_modelview");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::projection_inv)] = glGetUniformLocation(ret.id, "eng_projection_inv");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::modelview_inv)] = glGetUniformLocation(ret.id, "eng_modelview_inv");
     //TODO: error check here
     return ret;
 }

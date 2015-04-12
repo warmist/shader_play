@@ -6,7 +6,7 @@
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 enum class predefined_uniforms{
-    resolution,time,mouse,last
+    resolution, time, mouse, projection, modelview, projection_inv,modelview_inv, last
 };
 struct prog_status{
     GLint result;

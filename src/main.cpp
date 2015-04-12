@@ -1,13 +1,17 @@
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
 #include <stdio.h>
-#include <GL/gl3w.h>
-#include <GLFW/glfw3.h>
+
 
 
 #include "shaders.h"
 #include <string>
 #include "filesys.h"
+#include "camera.h"
+#include "trackball.h"
+//NOTE:col major for opengl
 
 static void error_callback(int error, const char* description)
 {
@@ -23,6 +27,44 @@ void print_prog_status(const prog_status& s)
             ImGui::TextWrapped("Log:%s", &s.log[0]);
     }
 }
+void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
+{
+    float move_speed = delta_time*10;
+    float angle = move_speed / 20;
+    Eigen::Vector3f right(1, 0, 0);
+    Eigen::Vector3f up(0, 0, 1);
+#define KY_PRESS(KEY) if(glfwGetKey(window, KEY) == GLFW_PRESS)
+    KY_PRESS(GLFW_KEY_W)
+        //p.localTranslate(p.direction() *move_speed);
+        p.zoom(0.01);
+    KY_PRESS(GLFW_KEY_S)
+        p.zoom(-0.01);
+        //p.localTranslate(-p.direction() *move_speed);
+    KY_PRESS(GLFW_KEY_A)
+        p.localTranslate(p.right() *move_speed);
+    KY_PRESS(GLFW_KEY_D)
+        p.localTranslate(-p.right() *move_speed);
+    KY_PRESS(GLFW_KEY_UP)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(-angle, right)));
+    KY_PRESS(GLFW_KEY_DOWN)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(angle, right)));
+    KY_PRESS(GLFW_KEY_LEFT)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(-angle, up)));
+    KY_PRESS(GLFW_KEY_RIGHT)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(angle, up)));
+    KY_PRESS(GLFW_KEY_SPACE)
+    {
+        p.setPosition(Eigen::Vector3f(10, 10, 10));
+        p.setTarget(Eigen::Vector3f(0, 0, 0));
+    }
+#undef KY_PRESS
+}
+void handle_mouse(Camera& p, float dx, float dy)
+{
+    Eigen::Quaternionf q = Eigen::AngleAxisf(dx*M_PI, Eigen::Vector3f::UnitY())
+        * Eigen::AngleAxisf(-dy*M_PI, Eigen::Vector3f::UnitX());
+    p.rotateAroundTarget(q);
+}
 int main(int, char**)
 {
     // Setup window
@@ -36,6 +78,7 @@ int main(int, char**)
 
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Shay play", NULL, NULL);
     glfwMakeContextCurrent(window);
+    
     gl3wInit();
 
     GLuint VertexArrayID;
@@ -63,6 +106,12 @@ int main(int, char**)
     ImGui::GetIO().IniFilename = nullptr; //disable ini saving/loading
 
     ImVec4 clear_color = ImColor(114, 144, 154);
+
+    Camera player;
+    Trackball tracker;
+    tracker.setCamera(&player);
+    player.setPosition(Eigen::Vector3f(10, 10, 10));
+    player.setTarget(Eigen::Vector3f(0, 0, 0));
     program* current_program = nullptr;
     
     std::vector<program> programs = enum_programs();
@@ -70,8 +119,10 @@ int main(int, char**)
     // Main loop
     float time = 0;
     int recompile_timer = 0;
+    bool first_down_frame = true;
     while (!glfwWindowShouldClose(window))
     {
+        
         ImGuiIO& io = ImGui::GetIO();
         time += io.DeltaTime;
         glfwPollEvents();
@@ -105,6 +156,12 @@ int main(int, char**)
             ImGui::Begin("Shaders");
             static float f = 0.0f;
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            auto player_pos = player.position();
+            auto player_dir = player.direction();
+            ImGui::Text("Pos: %.2f %.2f %.2f Look: %2f %2f %2f", player_pos.x(), player_pos.y(), player_pos.z(), player_dir.x(), player_dir.y(), player_dir.z());
+
+            
+
             for (program& p : programs)
             {
                 bool is_current = &p == current_program;
@@ -145,12 +202,42 @@ int main(int, char**)
 
             ImGui::End();
         }
+        handle_keys(window, player, io.DeltaTime);
+        player.setViewport(io.DisplaySize.x, io.DisplaySize.y);
+        if (io.MouseDown[0] && !io.MouseDownOwned[0])
+            handle_mouse(player, io.MouseDelta.x / io.DisplaySize.x, -io.MouseDelta.y / io.DisplaySize.y);
+        
+        /* broken, nans only...
+        if (io.MouseDown[0] && !io.MouseDownOwned[0])
+        {
+            if (first_down_frame)
+            {
+                //ImGui::Text("Start tracking");
+                tracker.start(Trackball::Around);
+            }
+            else
+            {
+                //ImGui::Text("Mouse move %.2f %.2f", io.MousePos.x, io.MousePos.y);
+
+            }
+            tracker.track(Eigen::Vector2i(io.MousePos.x, io.MousePos.y));
+            first_down_frame = false;
+        }
+        else
+        {
+            //ImGui::Text("Stop tracking");
+            first_down_frame = true;
+        }
+        //*/
+
         if (current_program)
         {
             glUseProgram(current_program->id);
             glUniform2f(current_program->get_uniform(predefined_uniforms::resolution), io.DisplaySize.x, io.DisplaySize.y);
             glUniform1f(current_program->get_uniform(predefined_uniforms::time), time);
             glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownTime[0]);
+            player.activateGL(current_program->get_uniform(predefined_uniforms::projection), current_program->get_uniform(predefined_uniforms::modelview),
+                current_program->get_uniform(predefined_uniforms::projection_inv), current_program->get_uniform(predefined_uniforms::modelview_inv));
         }
         else
             glUseProgram(0);
@@ -181,6 +268,7 @@ int main(int, char**)
         
 
         glfwSwapBuffers(window);
+        
     }
 
     // Cleanup
