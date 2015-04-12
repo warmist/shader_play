@@ -98,7 +98,6 @@ Vector3f Camera::right(void) const
 {
     return orientation() * Vector3f::UnitX();
 }
-
 void Camera::setDirection(const Vector3f& newDirection)
 {
     // TODO implement it computing the rotation between newDirection and current dir ?
@@ -110,7 +109,7 @@ void Camera::setDirection(const Vector3f& newDirection)
     camAxes.col(0) = up.cross( camAxes.col(2) ).normalized();
     camAxes.col(1) = camAxes.col(2).cross( camAxes.col(0) ).normalized();
     setOrientation(Quaternionf(camAxes));
-    
+
     mViewIsUptodate = false;
 }
 

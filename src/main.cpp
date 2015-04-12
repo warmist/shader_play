@@ -27,23 +27,28 @@ void print_prog_status(const prog_status& s)
             ImGui::TextWrapped("Log:%s", &s.log[0]);
     }
 }
+void reset_camera(Camera& p)
+{
+    p.setPosition(Eigen::Vector3f(10, 10, 10));
+    p.setTarget(Eigen::Vector3f(0, 0, 0));
+    //p.setUp(Eigen::Vector3f::UnitY()); //TODO: fix setUp for camera
+}
 void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
 {
     float move_speed = delta_time*10;
     float angle = move_speed / 20;
-    Eigen::Vector3f right(1, 0, 0);
-    Eigen::Vector3f up(0, 0, 1);
+    Eigen::Vector3f right=Eigen::Vector3f::UnitX();
+    Eigen::Vector3f up = Eigen::Vector3f::UnitY();
+    Eigen::Vector3f forward = Eigen::Vector3f::UnitZ();
 #define KY_PRESS(KEY) if(glfwGetKey(window, KEY) == GLFW_PRESS)
     KY_PRESS(GLFW_KEY_W)
-        //p.localTranslate(p.direction() *move_speed);
-        p.zoom(0.01f);
+        p.localTranslate(-forward *move_speed);
     KY_PRESS(GLFW_KEY_S)
-        p.zoom(-0.01f);
-        //p.localTranslate(-p.direction() *move_speed);
+        p.localTranslate(forward *move_speed);
     KY_PRESS(GLFW_KEY_A)
-        p.localTranslate(p.right() *move_speed);
+        p.localTranslate(right *move_speed);
     KY_PRESS(GLFW_KEY_D)
-        p.localTranslate(-p.right() *move_speed);
+        p.localTranslate(-right *move_speed);
     KY_PRESS(GLFW_KEY_UP)
         p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(-angle, right)));
     KY_PRESS(GLFW_KEY_DOWN)
@@ -52,10 +57,13 @@ void handle_keys(GLFWwindow* window, Camera& p, float delta_time)
         p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(-angle, up)));
     KY_PRESS(GLFW_KEY_RIGHT)
         p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(angle, up)));
+    KY_PRESS(GLFW_KEY_Q)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(-angle, forward)));
+    KY_PRESS(GLFW_KEY_E)
+        p.rotateAroundTarget(Eigen::Quaternionf(Eigen::AngleAxisf(angle, forward)));
     KY_PRESS(GLFW_KEY_SPACE)
     {
-        p.setPosition(Eigen::Vector3f(10, 10, 10));
-        p.setTarget(Eigen::Vector3f(0, 0, 0));
+        reset_camera(p);
     }
 #undef KY_PRESS
 }
@@ -173,8 +181,7 @@ int main(int, char**)
     Camera player;
     Trackball tracker;
     tracker.setCamera(&player);
-    player.setPosition(Eigen::Vector3f(10, 10, 10));
-    player.setTarget(Eigen::Vector3f(0, 0, 0));
+    reset_camera(player);
     program* current_program = nullptr;
     
     std::vector<program> programs = enum_programs();
@@ -191,7 +198,7 @@ int main(int, char**)
         glfwPollEvents();
         if (watcher.check_changes()) //double triggered, maybe sometimes file is in use and can't be opened when it happens
         {
-            recompile_timer = 100;
+            recompile_timer = 15; //TODO: probably needs timer not counter here
         }
         if (recompile_timer == 1)
         {
@@ -222,8 +229,6 @@ int main(int, char**)
             auto player_pos = player.position();
             auto player_dir = player.direction();
             ImGui::Text("Pos: %.2f %.2f %.2f Look: %2f %2f %2f", player_pos.x(), player_pos.y(), player_pos.z(), player_dir.x(), player_dir.y(), player_dir.z());
-
-            
 
             for (program& p : programs)
             {
@@ -292,7 +297,7 @@ int main(int, char**)
         if (io.MouseDown[0] && !io.MouseDownOwned[0])
             handle_mouse(player, io.MouseDelta.x / io.DisplaySize.x, -io.MouseDelta.y / io.DisplaySize.y);
         
-        /* broken, nans only...
+        /* broken, nans only... FIXME: figure this out
         if (io.MouseDown[0] && !io.MouseDownOwned[0])
         {
             if (first_down_frame)

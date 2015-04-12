@@ -68,7 +68,7 @@ class Camera
     
     void setDirection(const Eigen::Vector3f& newDirection);
     Eigen::Vector3f direction(void) const;
-    void setUp(const Eigen::Vector3f& vectorUp);
+    //void setUp(const Eigen::Vector3f& vectorUp);
     Eigen::Vector3f up(void) const;
     Eigen::Vector3f right(void) const;
     
