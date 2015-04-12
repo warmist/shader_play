@@ -103,3 +103,13 @@ void pMirror2(inout vec2 p,vec2 d)
 	if(p.x>p.y)
 		p.xy=p.yx;
 }
+
+float udRoundBox( vec3 p, vec3 b, float r )
+{
+  return length(max(abs(p)-b,0.0))-r;
+}
+float sdTorus( vec3 p, vec2 t )
+{
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y; 
+}
