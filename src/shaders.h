@@ -10,7 +10,7 @@ enum class predefined_uniforms{
 };
 struct prog_status{
     GLint result;
-    std::vector<char> log;
+    std::string log;
 };
 struct shader{
     std::string path;

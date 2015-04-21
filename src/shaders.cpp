@@ -4,6 +4,11 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+
+struct loader_context{
+    int last_id = 0;
+    std::map<int, std::string> filenames; //TODO: probably simple vector would work too...
+};
 struct shader_meta_info
 {
     //std::vector<uniform> uniforms;
@@ -11,6 +16,7 @@ struct shader_meta_info
     std::string program; //TODO: might be more than one
     std::string type;
     GLuint gl_type;
+    int filename_id;
 };
 GLuint get_gl_shader_type(const std::string& type)
 {
@@ -96,13 +102,19 @@ struct shader_info{
     shader s;
     shader_meta_info sm;
 };
-std::string load_shader(const std::string& path) //TODO: add unique id for each shader for debug
+std::string load_shader(const std::string& path,loader_context& ctx) //TODO: add unique id for each shader for debug
 {
     std::fstream fs(path);
     std::string ret;
     std::string line;
     const std::string INCLUDE = "//!include";
     int line_counter = 0;
+    int fname_id = ctx.last_id;
+    ctx.filenames[fname_id] = path;
+    ctx.last_id++;
+    ret += "\n#line 1 ";
+    ret += std::to_string(fname_id);
+    ret += "\n";
     while (std::getline(fs, line))
     {
         line_counter++;
@@ -112,11 +124,12 @@ std::string load_shader(const std::string& path) //TODO: add unique id for each 
         if (token == INCLUDE)
         {
             ss >> token;
-            ret += "\n#line 1 10\n";
-            ret += load_shader("shaders/"+token);
-            ret += "\n#line ";
+            ret += load_shader("shaders/"+token,ctx);
+            ret += "\n#line "; //restore correct line id
             ret += std::to_string(line_counter + 1);
-            ret += " 0\n";
+            ret += " ";
+            ret += std::to_string(fname_id);
+            ret += "\n";
         }
         else
         {
@@ -126,7 +139,7 @@ std::string load_shader(const std::string& path) //TODO: add unique id for each 
     }
     return ret;
 }
-std::vector<shader> enum_shaders()
+std::vector<shader> enum_shaders(loader_context& ctx)
 {
     auto file_list = enum_files("shaders/*.glsl");
     std::vector<shader> ret;
@@ -135,7 +148,7 @@ std::vector<shader> enum_shaders()
         shader s;
         s.path = "shaders/" + f;
         s.name = f;
-        s.program = load_shader(s.path);
+        s.program = load_shader(s.path, ctx);
         ret.push_back(s);
     }
     return ret;
@@ -167,7 +180,57 @@ void init_uniforms(program& p, const std::vector<shader_info>& prog_shaders)
         //TODO: check id here;
     }
 }
-program init_program(const std::vector<shader_info>& prog_shaders,const std::string& name)
+void get_shader_log(shader& s, loader_context& ctx)
+{
+    int InfoLogLength;
+    glGetShaderiv(s.id, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    std::vector<char> log;
+    log.resize(InfoLogLength + 1);
+    
+    glGetShaderInfoLog(s.id, InfoLogLength, NULL, &log[0]);
+    std::string ret;
+    std::stringstream fs(log.data());
+    
+    std::string line;
+    
+    while (std::getline(fs, line))
+    {
+        
+        std::stringstream ss(line);
+        std::string token;
+        ss >> token;
+        if (token == "ERROR:")
+        {
+            
+            ss >> token;
+            if (token.back() == ':')
+            {
+                int file_id = std::stoi(token);
+                if (!ctx.filenames.count(file_id))
+                {
+                    ret += line;
+                    continue;
+                }
+                else
+                {
+                    ret += "ERROR: ";
+                    ret += ctx.filenames[file_id];
+                    ret += token.substr(token.find(":"));
+                    while (ss >> token)
+                        ret += " " + token;
+                    ret += "\n";
+                }
+            }
+        }
+        else
+        {
+            ret += line;
+            ret += "\n";
+        }
+    }
+    s.status.log = ret;
+}
+program init_program(const std::vector<shader_info>& prog_shaders, const std::string& name, loader_context& ctx)
 {
     program ret;
     ret.name = name;
@@ -188,15 +251,13 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
         tmp_s.id = s_id;
         tmp_s.type_name = info.sm.type;
 
-        int InfoLogLength;
+        
 
         glShaderSource(s_id, 1, &p, &l);
         glCompileShader(s_id);
         // Check Shader
         glGetShaderiv(s_id, GL_COMPILE_STATUS, &tmp_s.status.result);
-        glGetShaderiv(s_id, GL_INFO_LOG_LENGTH, &InfoLogLength);
-        tmp_s.status.log.resize(InfoLogLength+1);
-        glGetShaderInfoLog(s_id, InfoLogLength, NULL, &tmp_s.status.log[0]);
+        get_shader_log(tmp_s, ctx);
 
         glAttachShader(ret.id, s_id);
         
@@ -208,8 +269,10 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
         glGetProgramiv(ret.id, GL_LINK_STATUS, &ret.status.result);
 
         glGetProgramiv(ret.id, GL_INFO_LOG_LENGTH, &InfoLogLength);
-        ret.status.log.resize(InfoLogLength + 1);
-        glGetProgramInfoLog(ret.id, InfoLogLength, NULL, &ret.status.log[0]);
+        std::vector<char> log;
+        log.resize(InfoLogLength + 1);
+        glGetProgramInfoLog(ret.id, InfoLogLength, NULL, log.data());
+        ret.status.log = std::string(log.data(), log.size()); //TODO: a bit ugly here
         //TODO: bail on error?
     }
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::resolution)] = glGetUniformLocation(ret.id, "eng_resolution");
@@ -226,7 +289,8 @@ program init_program(const std::vector<shader_info>& prog_shaders,const std::str
 
 std::vector<program> enum_programs()
 {
-    auto shaders = enum_shaders();
+    loader_context context;
+    auto shaders = enum_shaders(context);
     typedef std::map<std::string, std::vector<shader_info>> prog_info_map;
     typedef std::map<std::string, uniform> uniform_map_type;
     prog_info_map program_map;
@@ -244,7 +308,7 @@ std::vector<program> enum_programs()
     std::vector<program> ret;
     for (prog_info_map::iterator it = program_map.begin(); it != program_map.end(); it++)
     {
-        ret.push_back(init_program(it->second, it->first));
+        ret.push_back(init_program(it->second, it->first,context));
     }
     return ret;
 }

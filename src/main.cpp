@@ -12,7 +12,15 @@
 #include "camera.h"
 #include "trackball.h"
 //NOTE:col major for opengl
-
+/*
+    Ideas for the future:
+        add timeline like thingy
+        add ability to genrate (and maybe save) content- meshes, textures, etc...
+        add shader recompilable options (e.g. #define that you can flip on and off in gui)
+        rethink structure of shaders
+        loading textures and meshes
+        think out general architecture of pipeline setup (and modification).
+*/
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
@@ -24,7 +32,7 @@ void print_prog_status(const prog_status& s)
     else
     {
         if (s.log.size()>0)
-            ImGui::TextWrapped("Log:%s", &s.log[0]);
+            ImGui::TextWrapped("Log:%s", s.log.c_str());
     }
 }
 void reset_camera(Camera& p)
