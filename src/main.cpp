@@ -144,6 +144,84 @@ bool normalized_slider3(const char* label, float* data)
     }
     return false;
 }
+void make_gui(std::vector<program>& programs, program*& current_program)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Begin("Shaders");
+    float w = io.DisplaySize.x; 
+    float h = io.DisplaySize.y;
+    const float w_size = 300;
+    ImGui::SetWindowPos(ImVec2(w - w_size, 0), ImGuiSetCond_FirstUseEver);
+    ImGui::SetWindowSize(ImVec2(w_size, h), ImGuiSetCond_FirstUseEver);
+    static float f = 0.0f;
+    ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+    for (program& p : programs)
+    {
+        bool is_current = &p == current_program;
+
+        if (ImGui::CollapsingHeader(p.name.c_str()))
+        {
+            ImGui::PushID(p.name.c_str());
+            ImGui::Indent();
+            if (ImGui::CollapsingHeader("Info"))
+            {
+
+                ImGui::Text("Program id: %d", p.id);
+                print_prog_status(p.status);
+                ImGui::Separator();
+                for (const shader& s : p.shaders)
+                {
+                    ImGui::Text("Shader: %s(%s) Id:%d", s.name.c_str(), s.type_name.c_str(), s.id);
+                    print_prog_status(s.status);
+                    ImGui::Separator();
+                }
+            }
+            for (auto& u : p.uniforms)
+            {
+                switch (u.type)
+                {
+                case uniform_type::t_float:
+                    ImGui::InputFloat(u.name.c_str(), &u.data.f);
+                    break;
+                case uniform_type::t_float_clamp:
+                    ImGui::SliderFloat(u.name.c_str(), &u.data.f, 0, 1);
+                    break;
+                case uniform_type::t_vec3:
+                    ImGui::InputFloat3(u.name.c_str(), u.data.f3);
+                    break;
+                case uniform_type::t_vec3_clamp:
+                    ImGui::SliderFloat3(u.name.c_str(), u.data.f3, 0, 1);
+                    break;
+                case uniform_type::t_vec3_norm:
+                    normalized_slider3(u.name.c_str(), u.data.f3);
+                    break;
+                default:
+                    ImGui::Text("Unsupported uniform:%s", u.name.c_str());
+                }
+
+            }
+            if (p.status.result && ImGui::Checkbox("Use", &is_current))
+            {
+                if (current_program == &p)
+                {
+                    current_program = nullptr;
+                }
+                else
+                {
+                    current_program = &p;
+                }
+            }
+
+            ImGui::Unindent();
+            //for each uniform do sth...
+            ImGui::PopID();
+        }
+    }
+
+    ImGui::End();
+
+}
 int main(int, char**)
 {
     // Setup window
@@ -178,7 +256,6 @@ int main(int, char**)
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     // Give our vertices to OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
 
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
@@ -228,79 +305,8 @@ int main(int, char**)
         }
         ImGui_ImplGlfwGL3_NewFrame();
 
-        {
-            ImGui::Begin("Shaders");
-            static float f = 0.0f;
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            auto player_pos = player.position();
-            auto player_dir = player.direction();
-            ImGui::Text("Pos: %.2f %.2f %.2f Look: %2f %2f %2f", player_pos.x(), player_pos.y(), player_pos.z(), player_dir.x(), player_dir.y(), player_dir.z());
+        make_gui(programs,current_program);
 
-            for (program& p : programs)
-            {
-                bool is_current = &p == current_program;
-
-                if (ImGui::CollapsingHeader(p.name.c_str()))
-                {
-                    ImGui::PushID(p.name.c_str());
-                    ImGui::Indent();
-                    if (ImGui::CollapsingHeader("Info"))
-                    {
-
-                        ImGui::Text("Program id: %d", p.id);
-                        print_prog_status(p.status);
-                        ImGui::Separator();
-                        for (const shader& s : p.shaders)
-                        {
-                            ImGui::Text("Shader: %s(%s) Id:%d", s.name.c_str(), s.type_name.c_str(), s.id);
-                            print_prog_status(s.status);
-                            ImGui::Separator();
-                        }
-                    }
-                    for (auto& u : p.uniforms)
-                    {
-                        switch (u.type)
-                        {
-                        case uniform_type::t_float:
-                            ImGui::InputFloat(u.name.c_str(), &u.data.f);
-                            break;
-                        case uniform_type::t_float_clamp:
-                            ImGui::SliderFloat(u.name.c_str(), &u.data.f,0,1);
-                            break;
-                        case uniform_type::t_vec3:
-                            ImGui::InputFloat3(u.name.c_str(), u.data.f3);
-                            break;
-                        case uniform_type::t_vec3_clamp:
-                            ImGui::SliderFloat3(u.name.c_str(), u.data.f3,0,1);
-                            break;
-                        case uniform_type::t_vec3_norm:
-                            normalized_slider3(u.name.c_str(), u.data.f3);
-                            break;
-                        default:
-                            ImGui::Text("Unsupported uniform:%s", u.name.c_str());
-                        }
-                        
-                    }
-                    if (p.status.result && ImGui::Checkbox("Use", &is_current))
-                    {
-                        if (current_program == &p)
-                        {
-                            current_program = nullptr;
-                        }
-                        else
-                        {
-                            current_program = &p;
-                        }
-                    }
-                    
-                    ImGui::Unindent();
-                    //for each uniform do sth...
-                    ImGui::PopID();
-                }
-            }
-
-            ImGui::End();
-        }
         handle_keys(window, player, io.DeltaTime);
         player.setViewport(unsigned(io.DisplaySize.x), unsigned(io.DisplaySize.y));
         if (io.MouseDown[0] && !io.MouseDownOwned[0])

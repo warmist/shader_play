@@ -102,7 +102,7 @@ struct shader_info{
     shader s;
     shader_meta_info sm;
 };
-std::string load_shader(const std::string& path,loader_context& ctx) //TODO: add unique id for each shader for debug
+std::string load_shader(const std::string& path,loader_context& ctx)
 {
     std::fstream fs(path);
     std::string ret;
