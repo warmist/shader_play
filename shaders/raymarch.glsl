@@ -18,7 +18,7 @@ uniform mat4 eng_modelview_inv;
 //custom uniforms 
 uniform float plane_pos;
 uniform vec3 light_dir; //!norm
-
+uniform float ambient; //!clamp
 vec2 map(vec3 p)
 {
 	return opUnion(sdf(p),vec2(sdPlane(p-vec3(0,plane_pos,0)),-1.0));
@@ -129,8 +129,8 @@ void main(){
 		vec3 col=vec3(clamp(sin(mat*15.2+77.2)*0.5+0.5,0,1),clamp(sin(mat+666)*0.5+0.5,0,1),clamp(sin(mat*1337.0152+12.0)*0.5+0.5,0,1));
 
 		float diffuse=clamp(dot(norm,light_dir),0,1);
-		vec3 ambient=vec3(0.2,0.2,0.2)*col;
-		color=col*diffuse+ambient;
+		
+		color=col*(diffuse*(1-ambient)+ambient);
 	}
 	else if (mat<0)
 	{
