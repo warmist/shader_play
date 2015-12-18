@@ -282,6 +282,7 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::modelview)] = glGetUniformLocation(ret.id, "eng_modelview");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::projection_inv)] = glGetUniformLocation(ret.id, "eng_projection_inv");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::modelview_inv)] = glGetUniformLocation(ret.id, "eng_modelview_inv");
+    ret.predef_uniforms[static_cast<int>(predefined_uniforms::last_frame)] = glGetUniformLocation(ret.id, "eng_last_frame");
     
     init_uniforms(ret, prog_shaders);
     return ret;

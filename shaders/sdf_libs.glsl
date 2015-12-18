@@ -85,13 +85,6 @@ float opUnionSimple(float a,float b)
 {
 	return min(a,b);
 }
-float pMod1(inout float p,float size)
-{
-	float halfsize=size*0.5;
-	float c= floor((p+halfsize)/size);
-	p=mod(p+halfsize,size)-halfsize;
-	return c;
-}
 vec2 opUnion(vec2 a,vec2 b)
 {
 	return (a.x<b.x)?(a):(b);

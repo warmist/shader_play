@@ -20,7 +20,12 @@
         rethink structure of shaders
         loading textures and meshes
         think out general architecture of pipeline setup (and modification).
+    other stuff:
+        octree sdfs
+        composite screens (render something with few shaders and then compose)
+        cellular automata
 */
+const char* version_string=nullptr;
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
@@ -148,12 +153,13 @@ void make_gui(std::vector<program>& programs, program*& current_program)
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Begin("Shaders");
+
     float w = io.DisplaySize.x; 
     float h = io.DisplaySize.y;
     const float w_size = 300;
     ImGui::SetWindowPos(ImVec2(w - w_size, 0), ImGuiSetCond_FirstUseEver);
     ImGui::SetWindowSize(ImVec2(w_size, h), ImGuiSetCond_FirstUseEver);
-    static float f = 0.0f;
+    ImGui::Text("Version:%s", version_string);
     ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
     for (program& p : programs)
@@ -166,7 +172,6 @@ void make_gui(std::vector<program>& programs, program*& current_program)
             ImGui::Indent();
             if (ImGui::CollapsingHeader("Info"))
             {
-
                 ImGui::Text("Program id: %d", p.id);
                 print_prog_status(p.status);
                 ImGui::Separator();
@@ -212,9 +217,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                     current_program = &p;
                 }
             }
-
             ImGui::Unindent();
-            //for each uniform do sth...
             ImGui::PopID();
         }
     }
@@ -222,21 +225,77 @@ void make_gui(std::vector<program>& programs, program*& current_program)
     ImGui::End();
 
 }
+struct pixel_buffer
+{
+    GLuint pixelbuffer[2];
+    GLuint texture;
+    GLsizeiptr screen_size = 0;
+    int index = 0;
+    int next_index = 1;
+
+    pixel_buffer()
+    {
+        glGenBuffers(2, pixelbuffer);
+        glGenTextures(1, &texture);
+    }
+    void update_buffer_size( ImGuiIO& io)
+    {
+        if (io.DisplaySize.x < 0)
+            return;
+        if (screen_size == (int)io.DisplaySize.x*io.DisplaySize.y)
+            return;
+        screen_size = GLsizeiptr(io.DisplaySize.x*io.DisplaySize.y);
+        const unsigned pixel_size = sizeof(unsigned char)*3;
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[0]);
+        glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[1]);
+        glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        //GL_INVALID_ENUM
+        // Because we're also using this tex as an image (in order to write to it),
+        // we bind it to an image unit as well
+        //glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+    }
+    GLuint cur_buffer()
+    {
+        return pixelbuffer[index];
+    }
+    GLuint next_buffer()
+    {
+        return pixelbuffer[next_index];
+    }
+    void flip()
+    {
+        index = (index + 1) % 2;
+        next_index = (index + 1) % 2;
+    }
+};
+
 int main(int, char**)
 {
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
         exit(1);
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Shay play", NULL, NULL);
     glfwMakeContextCurrent(window);
     
     gl3wInit();
+    version_string = (const char*)glGetString(GL_VERSION);
 
     GLuint VertexArrayID;
     glGenVertexArrays(1, &VertexArrayID);
@@ -250,13 +309,13 @@ int main(int, char**)
     };
     // This will identify our vertex buffer
     GLuint vertexbuffer;
-    // Generate 1 buffer, put the resulting identifier in vertexbuffer
+   
     glGenBuffers(1, &vertexbuffer);
-    // The following commands will talk about our 'vertexbuffer' buffer
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    // Give our vertices to OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+    pixel_buffer pbos;
+    
     // Setup ImGui binding
     ImGui_ImplGlfwGL3_Init(window, true);
     ImGui::GetIO().IniFilename = nullptr; //disable ini saving/loading
@@ -272,18 +331,20 @@ int main(int, char**)
     std::vector<program> programs = enum_programs();
     dir_watcher watcher("shaders");
     // Main loop
-    float time = 0;
+    float time = 0; //TODO: Floating point time. This could have bad accuracy in long run
     float recompile_timer = 0;
     bool first_down_frame = true;
     while (!glfwWindowShouldClose(window))
     {
         
         ImGuiIO& io = ImGui::GetIO();
-        time += io.DeltaTime;
+        
+        time += io.DeltaTime; //seems strange, maybe use glfwGetTime?
         glfwPollEvents();
+        
         if (watcher.check_changes()) //double triggered, maybe sometimes file is in use and can't be opened when it happens
         {
-            recompile_timer = time+0.5f; //TODO: probably needs timer not counter here
+            recompile_timer = time+0.5f;
         }
         if (recompile_timer <= time && recompile_timer != 0)
         {
@@ -304,7 +365,7 @@ int main(int, char**)
             }
         }
         ImGui_ImplGlfwGL3_NewFrame();
-
+        pbos.update_buffer_size(io);
         make_gui(programs,current_program);
 
         handle_keys(window, player, io.DeltaTime);
@@ -338,6 +399,11 @@ int main(int, char**)
         if (current_program)
         {
             glUseProgram(current_program->id);
+
+            glUniform1i(current_program->get_uniform(predefined_uniforms::last_frame), 0);
+            glActiveTexture(GL_TEXTURE0 + 0);
+            glBindTexture(GL_TEXTURE_2D, pbos.texture);
+
             glUniform2f(current_program->get_uniform(predefined_uniforms::resolution), io.DisplaySize.x, io.DisplaySize.y);
             glUniform1f(current_program->get_uniform(predefined_uniforms::time), time);
             glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownTime[0]);
@@ -382,13 +448,25 @@ int main(int, char**)
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glDisableVertexAttribArray(0);
-
+        if (current_program)
+        {
+            //load stuff into texture
+            glReadBuffer(GL_BACK); //read back framebuf
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos.cur_buffer());
+            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0); 
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.next_buffer());
+            glActiveTexture(GL_TEXTURE0 + 0);
+            //glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)io.DisplaySize.x);
+            //glTexImage2D(pbos.texture, 0, GL_RGBA, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0);
+            //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        }
         ImGui::Render();
         
-        
-
         glfwSwapBuffers(window);
-        
+        pbos.flip();
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     }
 
     // Cleanup
