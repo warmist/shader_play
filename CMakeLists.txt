@@ -5,7 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 
 
-SET(IMGUI CACHE PATH "Path to imgui")
+SET(IMGUI "../imgui" CACHE PATH "Path to imgui")
 SET(GL3W "libs/gl3w" CACHE PATH "Path to gl3w")
 SET(GLFW "../glfw-3.1.1/install" CACHE PATH "Path to glfw")
 
@@ -22,6 +22,7 @@ SET(GLFW_LIBS
 SET(SRCS
     ${GL3W}/GL/gl3w.c
     ${IMGUI}/imgui.cpp
+	${IMGUI}/imgui_draw.cpp
     src/imgui_impl_glfw_gl3.cpp
     
     src/camera.cpp

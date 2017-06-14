@@ -112,9 +112,10 @@ std::string load_shader(const std::string& path,loader_context& ctx)
     int fname_id = ctx.last_id;
     ctx.filenames[fname_id] = path;
     ctx.last_id++;
-    ret += "\n#line 1 ";
+	//workaround for nvidia not likeing this when using #version
+    /*ret += "\n#line 1 ";
     ret += std::to_string(fname_id);
-    ret += "\n";
+    ret += "\n";*/
     while (std::getline(fs, line))
     {
         line_counter++;
