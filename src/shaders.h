@@ -27,7 +27,7 @@ struct shader{
     
 };
 enum class uniform_type{
-    t_float,t_float_clamp,t_vec3,t_vec3_norm,t_vec3_clamp, last
+    t_float,t_float_clamp,t_vec3,t_vec3_norm,t_vec3_clamp,t_int,t_float_angle, last
 };
 struct uniform{
     GLuint id = -1;
@@ -38,7 +38,18 @@ struct uniform{
     union{
         float f;
         float f3[3];
+		int i;
     } data;
+	union{
+		float f;
+		int i;
+	} min;
+	bool has_min = false;
+	union {
+		float f;
+		int i;
+	} max;
+	bool has_max = false;
 };
 struct program{
     std::string name;

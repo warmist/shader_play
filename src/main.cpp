@@ -188,11 +188,35 @@ void make_gui(std::vector<program>& programs, program*& current_program)
             {
                 switch (u.type)
                 {
+				case uniform_type::t_float_angle:
+					if (u.has_max && u.has_min)
+					{
+						ImGui::SliderAngle(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+					}
+					else
+					{
+						ImGui::SliderAngle(u.name.c_str(), &u.data.f);
+					}
+					break;
                 case uniform_type::t_float:
-                    ImGui::InputFloat(u.name.c_str(), &u.data.f);
+					if (u.has_max && u.has_min)
+					{
+						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+					}
+					else
+					{
+						ImGui::InputFloat(u.name.c_str(), &u.data.f);
+					}
                     break;
                 case uniform_type::t_float_clamp:
-                    ImGui::SliderFloat(u.name.c_str(), &u.data.f, 0, 1);
+					if (u.has_max && u.has_min)
+					{
+						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+					}
+					else
+					{
+						ImGui::SliderFloat(u.name.c_str(), &u.data.f, 0, 1);
+					}
                     break;
                 case uniform_type::t_vec3:
                     ImGui::InputFloat3(u.name.c_str(), u.data.f3);
@@ -203,6 +227,16 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                 case uniform_type::t_vec3_norm:
                     normalized_slider3(u.name.c_str(), u.data.f3);
                     break;
+				case uniform_type::t_int:
+					if (u.has_max && u.has_min)
+					{
+						ImGui::SliderInt(u.name.c_str(), &u.data.i, u.max.i, u.min.i);
+					}
+					else
+					{
+						ImGui::SliderInt(u.name.c_str(), &u.data.i);
+					}
+					break;
                 default:
                     ImGui::Text("Unsupported uniform:%s", u.name.c_str());
                 }
@@ -415,7 +449,11 @@ int main(int, char**)
             {
                 switch (u.type)
                 { 
+				case uniform_type::t_int:
+					glUniform1i(u.id, u.data.i);
+					break;
                 case uniform_type::t_float:
+				case uniform_type::t_float_angle:
                 case uniform_type::t_float_clamp:
                     glUniform1f(u.id, u.data.f);
                     break;

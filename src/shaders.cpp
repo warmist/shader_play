@@ -76,8 +76,14 @@ uniform parse_uniform(const std::string& line)
         ret.data.f3[2] = 0;
         ret.type = uniform_type::t_vec3;
     }
+	else if (token == "int")
+	{
+		ret.data.i = 0;
+		ret.type = uniform_type::t_int;
+	}
     else
         return ret; //unsupported type
+
     ss >> token;
     ret.name = token.substr(0,token.size()-1);
     if (token.substr(0, 4) == "eng_")
@@ -85,15 +91,49 @@ uniform parse_uniform(const std::string& line)
         ret.id = 0;
         return ret;//built-in uniform
     }
-    if (ss >> token)
-    {
-        if (token == "//!norm" && ret.type == uniform_type::t_vec3)
-            ret.type = uniform_type::t_vec3_norm;
-        if (token == "//!clamp" && ret.type == uniform_type::t_vec3)
-            ret.type = uniform_type::t_vec3_clamp;
-        if (token == "//!clamp" && ret.type == uniform_type::t_float)
-            ret.type = uniform_type::t_float_clamp;
-    }
+	while(ss>>token)
+	{
+		if (token.substr(0, 2) == "//")
+			token = token.substr(2, token.size() - 2);
+
+		if (token == "!norm" && ret.type == uniform_type::t_vec3)
+			ret.type = uniform_type::t_vec3_norm;
+		if (token == "!clamp" && ret.type == uniform_type::t_vec3)
+			ret.type = uniform_type::t_vec3_clamp;
+		if (token == "!clamp" && ret.type == uniform_type::t_float)
+			ret.type = uniform_type::t_float_clamp;
+		if (token == "!max")
+		{
+			if (ss >> token)
+			{
+				ret.has_max = true;
+				if (ret.type == uniform_type::t_float)
+				{
+					ret.max.f = std::stof(token);
+				}
+				else if (ret.type == uniform_type::t_int)
+				{
+					ret.max.i = std::stoi(token);
+				}
+			}
+		}
+		if (token == "!min")
+		{
+			ret.has_min = true;
+			if (ret.type == uniform_type::t_float)
+			{
+				ret.min.f = std::stof(token);
+			}
+			else if (ret.type == uniform_type::t_int)
+			{
+				ret.min.i = std::stoi(token);
+			}
+		}
+		if (token == "!angle" && ret.type==uniform_type::t_float)
+		{
+			ret.type = uniform_type::t_float_angle;
+		}
+	}
     return ret;
 }
 
