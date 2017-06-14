@@ -234,7 +234,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
 					}
 					else
 					{
-						ImGui::SliderInt(u.name.c_str(), &u.data.i);
+						ImGui::InputInt(u.name.c_str(), &u.data.i);
 					}
 					break;
                 default:
