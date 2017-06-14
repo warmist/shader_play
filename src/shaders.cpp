@@ -107,7 +107,7 @@ uniform parse_uniform(const std::string& line)
 			if (ss >> token)
 			{
 				ret.has_max = true;
-				if (ret.type == uniform_type::t_float)
+				if ((ret.type == uniform_type::t_float) || (ret.type == uniform_type::t_float_angle) || (ret.type == uniform_type::t_float_clamp)) //TODO: @TIDYUP is_float()? split into data/other type
 				{
 					ret.max.f = std::stof(token);
 				}
@@ -119,14 +119,17 @@ uniform parse_uniform(const std::string& line)
 		}
 		if (token == "!min")
 		{
-			ret.has_min = true;
-			if (ret.type == uniform_type::t_float)
+			if (ss >> token)
 			{
-				ret.min.f = std::stof(token);
-			}
-			else if (ret.type == uniform_type::t_int)
-			{
-				ret.min.i = std::stoi(token);
+				ret.has_min = true;
+				if ((ret.type == uniform_type::t_float) || (ret.type == uniform_type::t_float_angle) || (ret.type == uniform_type::t_float_clamp))
+				{
+					ret.min.f = std::stof(token);
+				}
+				else if (ret.type == uniform_type::t_int)
+				{
+					ret.min.i = std::stoi(token);
+				}
 			}
 		}
 		if (token == "!angle" && ret.type==uniform_type::t_float)
