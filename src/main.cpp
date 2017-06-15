@@ -1,3 +1,4 @@
+#define _GLFW_USE_DWM_SWAP_INTERVAL 1
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -268,7 +269,7 @@ struct pixel_buffer
     GLsizeiptr screen_size = 0;
     int index = 0;
     int next_index = 1;
-
+    std::vector<char> tmp_buffer;
     pixel_buffer()
     {
         glGenBuffers(2, pixelbuffer);
@@ -289,13 +290,16 @@ struct pixel_buffer
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[1]);
         glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
 
+        tmp_buffer.resize(screen_size*pixel_size, -1);
+
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        
         //GL_INVALID_ENUM
         // Because we're also using this tex as an image (in order to write to it),
         // we bind it to an image unit as well
@@ -315,7 +319,10 @@ struct pixel_buffer
         next_index = (index + 1) % 2;
     }
 };
-
+void APIENTRY dgb_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, GLvoid *userParam)
+{
+    __debugbreak();
+}
 int main(int, char**)
 {
     // Setup window
@@ -326,12 +333,22 @@ int main(int, char**)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+    
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Shay play", NULL, NULL);
     glfwMakeContextCurrent(window);
+
     
+
     gl3wInit();
     version_string = (const char*)glGetString(GL_VERSION);
+
+    glfwSwapInterval(1);
+
+#ifdef DO_GL_DEBUG
+    glDebugMessageCallback(&dgb_callback, nullptr);
+    glEnable(GL_DEBUG_OUTPUT);
+#endif
 
     GLuint VertexArrayID;
     glGenVertexArrays(1, &VertexArrayID);
@@ -431,20 +448,20 @@ int main(int, char**)
             first_down_frame = true;
         }
         //*/
-
+       
         if (current_program)
         {
             glUseProgram(current_program->id);
-
             glUniform1i(current_program->get_uniform(predefined_uniforms::last_frame), 0);
             glActiveTexture(GL_TEXTURE0 + 0);
             glBindTexture(GL_TEXTURE_2D, pbos.texture);
-
             glUniform2f(current_program->get_uniform(predefined_uniforms::resolution), io.DisplaySize.x, io.DisplaySize.y);
             glUniform1f(current_program->get_uniform(predefined_uniforms::time), time);
             glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownDuration[0]);
+            
             player.activateGL(current_program->get_uniform(predefined_uniforms::projection), current_program->get_uniform(predefined_uniforms::modelview),
                 current_program->get_uniform(predefined_uniforms::projection_inv), current_program->get_uniform(predefined_uniforms::modelview_inv));
+
             for (const auto& u : current_program->uniforms)
             {
                 switch (u.type)
@@ -471,10 +488,10 @@ int main(int, char**)
         
         // Rendering
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(VertexArrayID);
+        
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(
@@ -487,26 +504,43 @@ int main(int, char**)
             );
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glDisableVertexAttribArray(0);
+
         if (current_program)
         {
+           
             //load stuff into texture
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
             glReadBuffer(GL_BACK); //read back framebuf
             glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos.cur_buffer());
-            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0); 
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.next_buffer());
-            glActiveTexture(GL_TEXTURE0 + 0);
+            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0);
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.cur_buffer());
+            /*
+             
+            
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.next_buffer());*/
+            
+            
+            
             //glPixelStorei(GL_UNPACK_ROW_LENGTH, (int)io.DisplaySize.x);
-            //glTexImage2D(pbos.texture, 0, GL_RGBA, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+            //glTexImage2D(pbos.texture, 0, GL_RGBA, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_BGRA, GL_UNSIGNED_BYTE, pbos.tmp_buffer.data());
+            glActiveTexture(GL_TEXTURE0 + 0);
+            glBindTexture(GL_TEXTURE_2D, pbos.texture);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0);
             //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         }
+        glDisableVertexAttribArray(0);
+        
         ImGui::Render();
         
         glfwSwapBuffers(window);
-        pbos.flip();
+
+        //pbos.flip();
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        
     }
 
     // Cleanup
