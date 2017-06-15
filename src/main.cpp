@@ -282,7 +282,7 @@ struct pixel_buffer
         if (screen_size == (int)io.DisplaySize.x*io.DisplaySize.y)
             return;
         screen_size = GLsizeiptr(io.DisplaySize.x*io.DisplaySize.y);
-        const unsigned pixel_size = sizeof(unsigned char)*3;
+        const unsigned pixel_size = sizeof(unsigned char)*4;
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[0]);
         glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
@@ -298,7 +298,7 @@ struct pixel_buffer
         //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         
         //GL_INVALID_ENUM
         // Because we're also using this tex as an image (in order to write to it),
@@ -457,7 +457,10 @@ int main(int, char**)
             glBindTexture(GL_TEXTURE_2D, pbos.texture);
             glUniform2f(current_program->get_uniform(predefined_uniforms::resolution), io.DisplaySize.x, io.DisplaySize.y);
             glUniform1f(current_program->get_uniform(predefined_uniforms::time), time);
-            glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, io.MouseDownDuration[0]);
+            float dur = io.MouseDownDuration[0];
+            if (io.MouseDownOwned[0])
+                dur = 0;
+            glUniform3f(current_program->get_uniform(predefined_uniforms::mouse), (io.MousePos.x / io.DisplaySize.x) * 2 - 1, (1 - io.MousePos.y / io.DisplaySize.y) * 2 - 1, dur);
             
             player.activateGL(current_program->get_uniform(predefined_uniforms::projection), current_program->get_uniform(predefined_uniforms::modelview),
                 current_program->get_uniform(predefined_uniforms::projection_inv), current_program->get_uniform(predefined_uniforms::modelview_inv));
@@ -514,7 +517,7 @@ int main(int, char**)
 
             glReadBuffer(GL_BACK); //read back framebuf
             glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos.cur_buffer());
-            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0);
+            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, 0);
             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.cur_buffer());
             /*
@@ -528,7 +531,7 @@ int main(int, char**)
             //glTexImage2D(pbos.texture, 0, GL_RGBA, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_BGRA, GL_UNSIGNED_BYTE, pbos.tmp_buffer.data());
             glActiveTexture(GL_TEXTURE0 + 0);
             glBindTexture(GL_TEXTURE_2D, pbos.texture);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGB, GL_UNSIGNED_BYTE, 0);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, 0);
             //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         }
         glDisableVertexAttribArray(0);
