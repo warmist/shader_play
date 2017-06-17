@@ -42,11 +42,13 @@ SET(HDRS
     ${IMGUI}/stb_truetype.h
 
     src/imgui_impl_glfw_gl3.h
-    
+
     src/camera.h
     src/trackball.h
     src/filesys.h
     src/shaders.h
+
+	src/stb_image_write.h
 )
 
 INCLUDE_DIRECTORIES(src)

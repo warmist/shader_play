@@ -14,6 +14,9 @@
 #include "filesys.h"
 #include "camera.h"
 #include "trackball.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 //NOTE:col major for opengl
 /*
     Ideas for the future:
@@ -269,7 +272,7 @@ struct pixel_buffer
     GLsizeiptr screen_size = 0;
     int index = 0;
     int next_index = 1;
-    std::vector<char> tmp_buffer;
+
     pixel_buffer()
     {
         glGenBuffers(2, pixelbuffer);
@@ -289,8 +292,6 @@ struct pixel_buffer
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[1]);
         glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
-
-        tmp_buffer.resize(screen_size*pixel_size, -1);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -323,6 +324,7 @@ void APIENTRY dgb_callback(GLenum source, GLenum type, GLuint id, GLenum severit
 {
     __debugbreak();
 }
+std::vector<char> tmp_buffer;
 int main(int, char**)
 {
     // Setup window
@@ -512,8 +514,8 @@ int main(int, char**)
         {
            
             //load stuff into texture
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //HACK
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);//HACK
 
             glReadBuffer(GL_BACK); //read back framebuf
             glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos.cur_buffer());
@@ -533,6 +535,15 @@ int main(int, char**)
             glBindTexture(GL_TEXTURE_2D, pbos.texture);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, 0);
             //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+			ImGui::Begin("Shaders");
+			if (ImGui::Button("Save image"))
+			{
+				tmp_buffer.resize((int)io.DisplaySize.x*(int)io.DisplaySize.y * 4);
+
+				glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
+				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, tmp_buffer.data(),4* (int)io.DisplaySize.x);
+			}
+			ImGui::End();
         }
         glDisableVertexAttribArray(0);
         
