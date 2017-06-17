@@ -195,7 +195,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
 				case uniform_type::t_float_angle:
 					if (u.has_max && u.has_min)
 					{
-						ImGui::SliderAngle(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+						ImGui::SliderAngle(u.name.c_str(), &u.data.f, u.min.f, u.max.f);
 					}
 					else
 					{
@@ -205,7 +205,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                 case uniform_type::t_float:
 					if (u.has_max && u.has_min)
 					{
-						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.min.f, u.max.f);
 					}
 					else
 					{
@@ -215,7 +215,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                 case uniform_type::t_float_clamp:
 					if (u.has_max && u.has_min)
 					{
-						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.max.f, u.min.f);
+						ImGui::SliderFloat(u.name.c_str(), &u.data.f, u.min.f, u.max.f);
 					}
 					else
 					{
@@ -234,7 +234,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
 				case uniform_type::t_int:
 					if (u.has_max && u.has_min)
 					{
-						ImGui::SliderInt(u.name.c_str(), &u.data.i, u.max.i, u.min.i);
+						ImGui::SliderInt(u.name.c_str(), &u.data.i, u.min.i, u.max.i);
 					}
 					else
 					{
