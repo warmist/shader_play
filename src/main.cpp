@@ -398,6 +398,7 @@ int main(int, char**)
     float time = 0; //TODO: Floating point time. This could have bad accuracy in long run
     float recompile_timer = 0;
     bool first_down_frame = true;
+	std::string was_name;
     while (!glfwWindowShouldClose(window))
     {
         
@@ -414,14 +415,15 @@ int main(int, char**)
         {
             recompile_timer = 0;
             glUseProgram(0);
-            std::string p_name;
-            if (current_program != nullptr)
-                p_name = current_program->name;
+			if (current_program != nullptr)
+			{
+				was_name= current_program->name;
+			}
             update_programs(programs);
             current_program = nullptr;
             for (auto& p : programs)
             {
-                if (p.status.result && p.name == p_name)
+                if (p.status.result && p.name == was_name)
                 {
                     current_program = &p;
                     break;
