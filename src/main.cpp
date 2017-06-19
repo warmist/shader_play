@@ -325,15 +325,6 @@ void APIENTRY dgb_callback(GLenum source, GLenum type, GLuint id, GLenum severit
     __debugbreak();
 }
 std::vector<uint32_t> tmp_buffer;
-void flip_image(int w, int h, std::vector<uint32_t>& image)
-{
-	for (int y = 0; y<h / 2; y++)
-	for (int x = 0; x < w; x++)
-	{
-		
-		std::swap(image[x + y*w], image[x + (h - y - 1)*w]);
-	}
-}
 int main(int, char**)
 {
     // Setup window
@@ -539,8 +530,8 @@ int main(int, char**)
 				tmp_buffer.resize((int)io.DisplaySize.x*(int)io.DisplaySize.y * 4);
 
 				glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
-				flip_image((int)io.DisplaySize.x, (int)io.DisplaySize.y, tmp_buffer);
-				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, tmp_buffer.data(), 4 * (int)io.DisplaySize.x);
+				uint32_t* last_row = tmp_buffer.data() + ((int)io.DisplaySize.x * ((int)io.DisplaySize.y - 1));
+				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, last_row, -4 * (int)io.DisplaySize.x);
 			}
 			ImGui::End();
             /*
