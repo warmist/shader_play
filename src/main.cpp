@@ -31,6 +31,7 @@
         composite screens (render something with few shaders and then compose)
         cellular automata
 */
+#define DO_GL_DEBUG
 const char* version_string=nullptr;
 static void error_callback(int error, const char* description)
 {
@@ -270,13 +271,19 @@ struct pixel_buffer
     GLuint pixelbuffer[2];
     GLuint texture;
     GLsizeiptr screen_size = 0;
+
+    GLuint framebuffer;
+    GLuint framebuffer_tex;
+
     int index = 0;
     int next_index = 1;
-
     pixel_buffer()
     {
         glGenBuffers(2, pixelbuffer);
         glGenTextures(1, &texture);
+        glGenFramebuffers(1, &framebuffer);
+        glGenTextures(1, &framebuffer_tex);
+        //glGenRenderbuffers(1, &amp; mSceneData.mDepthBuffer);
     }
     void update_buffer_size( ImGuiIO& io)
     {
@@ -285,7 +292,7 @@ struct pixel_buffer
         if (screen_size == (int)io.DisplaySize.x*io.DisplaySize.y)
             return;
         screen_size = GLsizeiptr(io.DisplaySize.x*io.DisplaySize.y);
-        const unsigned pixel_size = sizeof(unsigned char)*4;
+        const unsigned pixel_size = sizeof(unsigned char)*16;
 
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelbuffer[0]);
         glBufferData(GL_PIXEL_PACK_BUFFER, screen_size*pixel_size, 0, GL_DYNAMIC_DRAW);
@@ -299,12 +306,28 @@ struct pixel_buffer
         //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         
         //GL_INVALID_ENUM
         // Because we're also using this tex as an image (in order to write to it),
         // we bind it to an image unit as well
         //glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
+
+
+
+        
+
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+        glBindTexture(GL_TEXTURE_2D, framebuffer_tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer_tex, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     GLuint cur_buffer()
     {
@@ -325,15 +348,6 @@ void APIENTRY dgb_callback(GLenum source, GLenum type, GLuint id, GLenum severit
     __debugbreak();
 }
 std::vector<uint32_t> tmp_buffer;
-void flip_image(int w, int h, std::vector<uint32_t>& image)
-{
-	for (int y = 0; y<h / 2; y++)
-	for (int x = 0; x < w; x++)
-	{
-		
-		std::swap(image[x + y*w], image[x + (h - y - 1)*w]);
-	}
-}
 int main(int, char**)
 {
     // Setup window
@@ -344,13 +358,15 @@ int main(int, char**)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef DO_GL_DEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-    
+#endif
+
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Shay play", NULL, NULL);
     glfwMakeContextCurrent(window);
 
     
-
+    
     gl3wInit();
     version_string = (const char*)glGetString(GL_VERSION);
 
@@ -360,7 +376,6 @@ int main(int, char**)
     glDebugMessageCallback(&dgb_callback, nullptr);
     glEnable(GL_DEBUG_OUTPUT);
 #endif
-
     GLuint VertexArrayID;
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
@@ -518,19 +533,25 @@ int main(int, char**)
             0,                  // stride
             (void*)0            // array buffer offset
             );
-
+        glBindFramebuffer(GL_FRAMEBUFFER, pbos.framebuffer);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, pbos.framebuffer);
+        glBlitFramebuffer(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
         if (current_program)
         {
            
             //load stuff into texture
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //HACK
-            glPixelStorei(GL_PACK_ALIGNMENT, 1);//HACK
 
-            glReadBuffer(GL_BACK); //read back framebuf
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, pbos.framebuffer);
+
             glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos.cur_buffer());
-            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+            glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_FLOAT, 0);
             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos.cur_buffer());
 			ImGui::Begin("Shaders");
@@ -539,7 +560,7 @@ int main(int, char**)
 				tmp_buffer.resize((int)io.DisplaySize.x*(int)io.DisplaySize.y * 4);
 
 				glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
-				flip_image((int)io.DisplaySize.x, (int)io.DisplaySize.y, tmp_buffer);
+
 				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, tmp_buffer.data(), 4 * (int)io.DisplaySize.x);
 			}
 			ImGui::End();
@@ -554,9 +575,10 @@ int main(int, char**)
             //glTexImage2D(pbos.texture, 0, GL_RGBA, (int)io.DisplaySize.x, (int)io.DisplaySize.y, 0, GL_BGRA, GL_UNSIGNED_BYTE, pbos.tmp_buffer.data());
             glActiveTexture(GL_TEXTURE0 + 0);
             glBindTexture(GL_TEXTURE_2D, pbos.texture);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_FLOAT, 0);
             //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-			
+
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         }
         glDisableVertexAttribArray(0);
         
