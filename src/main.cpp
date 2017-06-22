@@ -17,6 +17,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <cstdint>
+
 //NOTE:col major for opengl
 /*
     Ideas for the future:
@@ -557,11 +559,14 @@ int main(int, char**)
 			ImGui::Begin("Shaders");
 			if (ImGui::Button("Save image"))
 			{
-				tmp_buffer.resize((int)io.DisplaySize.x*(int)io.DisplaySize.y * 4);
+                int w = (int)io.DisplaySize.x;
+                int h = (int)io.DisplaySize.y;
 
-				glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
+				tmp_buffer.resize(w*h*4);
 
-				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, tmp_buffer.data(), 4 * (int)io.DisplaySize.x);
+				glReadPixels(0, 0, w,h, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
+
+				stbi_write_png("capture.png", w,h, 4, tmp_buffer.data()+w*(h-1), -4 * w);
 			}
 			ImGui::End();
             /*
