@@ -33,7 +33,7 @@
         composite screens (render something with few shaders and then compose)
         cellular automata
 */
-#define DO_GL_DEBUG
+//#define DO_GL_DEBUG
 const char* version_string=nullptr;
 static void error_callback(int error, const char* description)
 {
