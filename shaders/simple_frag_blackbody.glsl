@@ -29,7 +29,7 @@ uniform vec3 light_dir; //!norm
 uniform float sqr_alpha; //!clamp
 uniform float fbm_freq;
 uniform float fbm_influence; //!clamp
-
+uniform float gamma;
 
 
 hp float xFit_1931( hp float wave )
@@ -293,6 +293,7 @@ void main(){
 	//	xyz/=xyz.y;
 	//float diffuse=clamp(d,0,1); //diffuse does not work well because real water has internal reflection(s)
     color = vec4(xyz2rgb(xyz),1);
+	color.rgb=pow(color.rgb,vec3(gamma));
 }
 
 void main_raytrace(){
@@ -371,7 +372,9 @@ void main_bubble()
 		spos=vec3(npos.x,-sqrt(1-npos.x*npos.x-npos.y*npos.y),npos.y);
 		diffuse=clamp(dot(spos,-light_dir),0,1);
 		lcol+=sphere1(spos)*diffuse;
-	    color = vec4(xyz2rgb(lcol),1);
+		vec3 col=xyz2rgb(lcol);
+		vec3 cg=pow(col,vec3(1.0/gamma));
+	    color = vec4(cg,1);
 	}
 	else
 	{

@@ -6,8 +6,8 @@ varying vec3 pos;
 uniform float eng_time;
 uniform vec3 eng_mouse;
 uniform vec2 eng_resolution;
-uniform int card; //!min 0 !max 11
-
+uniform int card; //!min 0 !max 14
+uniform int anim; //!min 0 !max 3
 #define M_PI 3.14159265359
 
 vec3 hsv2rgb(vec3 c)
@@ -86,6 +86,18 @@ float pMod1(inout float p,float size)
 	p=mod(p+halfsize,size)-halfsize;
 	return c;
 }
+vec2 pMod2(inout vec2 p,float size)
+{
+	vec2 halfsize=vec2(size*0.5);
+	vec2 c= floor((p+halfsize)/size);
+	p=mod(p+halfsize,size)-halfsize;
+	return c;
+}
+float random (in vec2 st) { 
+    return fract(sin(dot(st.xy,
+                         vec2(12.9898,78.233)))
+                 * 43758.5453123);
+}
 float noise (in vec2 st) {
     vec2 i = floor(st);
     vec2 f = fract(st);
@@ -106,6 +118,29 @@ float noise (in vec2 st) {
     return mix(a, b, u.x) + 
             (c - a)* u.y * (1.0 - u.x) + 
             (d - b) * u.x * u.y;
+}
+float bit_noise( in vec2 p )
+{
+    vec2 i = floor( p );
+    vec2 f = fract( p );
+	
+	vec2 u = f*f*(3.0-2.0*f);
+
+    return mix( mix( random( i + vec2(0.0,0.0) ), 
+                     random( i + vec2(1.0,0.0) ), u.x),
+                mix( random( i + vec2(0.0,1.0) ), 
+                     random( i + vec2(1.0,1.0) ), u.x), u.y);
+}
+float fbm(in vec2 uv)
+{
+	float f=0.0;
+	uv *= 8.0;
+    mat2 m = mat2( 1.6,  1.2, -1.2,  1.6 );
+	f  = 0.5000*bit_noise( uv ); uv = m*uv;
+	f += 0.2500*bit_noise( uv ); uv = m*uv;
+	f += 0.1250*bit_noise( uv ); uv = m*uv;
+	f += 0.0625*bit_noise( uv ); uv = m*uv;
+	return f;
 }
 /*
 //thing
@@ -158,70 +193,129 @@ vec2 from_barycentric(in vec3 p)
 
 	return p1*p.x+p2*p.y+p3*p.z;
 }
+float grid(in vec2 p,float t)
+{
+	float s=0.05;
+	float noise_level=0.25;
+	/*
+	vec2 pd=p/s;
+	float d=length(mod(p,s)-vec2(s/2))-s/4;*/
+	vec2 pp=pMod2(p,s);
+	float d=length(p)-s/4;
+	//p+=vec2(s/4);
+	float dd=step(0.01,max(abs(p.x),abs(p.y)));
+	float n=noise(pp/5);
+
+	if(n>(1-t*noise_level))
+		return 1-smoothstep(-0.001,0.001,d);
+	else if (n>(1-t*noise_level)*0.5)
+		return 1-dd;//smoothstep(-0.001,0.001,dd);
+	else
+		return 0;
+}
+float rod(float p,float fw,float d)
+{
+	return smoothstep(-fw/2,fw/2,p+d/2)-smoothstep(-fw/2,fw/2,p-d/2);
+}
 void main(){
+	/*
+	Ideas for having:
+		* axis of reflection/rotation
+		* items (clubs, shields, etc...)
+		* counts (1,2,3,...)
+		* themes (voronoi, perlin noise, pure noise, exact images, polar)
+		* colors (bw, saturated, pastel, mono color)
+		* celtic knots: http://www.calligraphy-skills.com/celtic-knotwork-design.html
+	*/
 	float phi=1.618033988;
 	float phi1=1/phi;
 	
 	vec3 npos=pos;
 	npos.x*=eng_resolution.x/eng_resolution.y;
-	float fw=fwidth(length(npos));
+	float fw=length(fwidth(npos));
 	float outv=0;
-	//infinite axis of reflection
+	float slow_anim;
+	
+	if(anim==0) //off
+		slow_anim=1;
+	else if(anim==1) //default
+		slow_anim=noise(vec2(eng_time/20));
+	else if(anim==2) //debug
+		slow_anim=noise(vec2(eng_time));
+	else if(anim==3) //messed up
+		slow_anim=noise(vec2(eng_time))*fbm(npos.xy);
+
 	if(card==0)
 	{
+
     	float st_val=0.9;
 		outv=sh_ring(npos.xy,st_val,st_val*phi1,fw*2);
 		for(int i=0;i<4;i++)
 		{
-			st_val*=phi1*phi1;
+			st_val*=pow(phi1,1+slow_anim);
 			fw*=phi1;
 			outv=max(outv,sh_ring(npos.xy,st_val,st_val*phi1,fw*2));
 		}
 	}
 	else if(card==1)
 	{
-		outv=smoothstep(-fw,fw,npos.y);
-		vec2 np=npos.xy;
-		np.x=mod(np.x,0.3);
-		outv=abs(outv-sh_polyhedron(np.xy,3,0.1,M_PI/2,fw));
+		float mask=sh_circle(npos.xy,1.25,fw);
+		float chance=dot(npos.xy,npos.xy);
+		//chance=exp(chance*p1)*p2-1;
+		chance=smoothstep(0,1,chance*(1.3+slow_anim));
+		float chance2=0.6-dot(npos.xy,npos.xy);
+		chance2=smoothstep(0,1,chance2*(1+slow_anim));
+		float r=random(npos.xy);
+		float v=(r>(1-chance))?(1):(0);
+		float v2=(r>(1-chance2))?(1):(0);
+		outv=v*mask+v2*(1-mask);
 	}
 	else if(card==2)
 	{
-		vec2 p1=npos.xy*2+vec2(-1,0.4);
-		t_rot(p1,M_PI/6);
+		outv=smoothstep(-fw,fw,npos.y);
+		vec2 np=npos.xy+vec2(slow_anim*2,0);
+		np.x=mod(np.x,0.3);
+		outv=abs(outv-sh_polyhedron(np.xy,3,0.1,M_PI/2,fw));
+	}
+	else if(card==3)
+	{
+		float angle=slow_anim*M_PI-M_PI/4;
+		vec2 p1=npos.xy*2+vec2(cos(angle),sin(angle));
+		t_rot(p1,M_PI/6*slow_anim);
 		outv=dagger(p1,fw)-dagger(p1*1.3-vec2(0,0.1),fw);
-		vec2 p2=npos.xy*2+vec2(1,-0.4);
-		t_rot(p2,M_PI+M_PI/6);
+		vec2 p2=npos.xy*2+vec2(cos(angle+M_PI),sin(angle+M_PI));
+		t_rot(p2,M_PI+M_PI/6*slow_anim);
 		outv=max(outv,dagger(p2,fw)-dagger(p2*1.3-vec2(0,0.1),fw));
 	}
 
-	else if(card==3)
+	else if(card==4)
 	{
 		outv=sh_circle(npos.xy,1.6,fw*4);
-		outv-=sh_polyhedron(npos.xy,3,0.45,0,fw);
-		outv=max(outv,sh_polyhedron(npos.xy,3,0.38,0,fw));
+		outv-=sh_polyhedron(npos.xy,3,0.45,M_PI*(1-slow_anim),fw);
+		outv=max(outv,sh_polyhedron(npos.xy,3,0.38,M_PI*(1-slow_anim),fw));
 	}
-	else if(card==4)
+	else if(card==5)
 	{
 
 		vec2 np=npos.xy;
 		//outv=sh_circle(np,.2,fw);
 		for(int i=0;i<4;i++)
 		{
-			outv=max(outv,sickle(np-vec2(0.35,0.1),fw));
-			outv=max(outv,sh_circle(np-vec2(0.3,0.2),0.05,fw));
+			outv=max(outv,sickle(np*(slow_anim/5+0.8)-vec2(0.35,0.1),fw));
+			outv=max(outv,sh_circle(np-vec2(0.3,0.2),0.05*slow_anim,fw));
 			t_rot(np,M_PI/2);
 			//np+=vec2(0.1,-0.5);
 		}
 	}
-	else if(card==5)
-	{
-		outv=sh_polyhedron(npos.xy,3,0.45,0,fw);
-		outv-=sh_circle(npos.xy,0.9,fw);
-		outv=max(outv,sh_circle(npos.xy,0.6,fw));
-	}
 	else if(card==6)
 	{
+		outv=sh_polyhedron(npos.xy,3,0.45,0,fw);
+		outv-=sh_circle(npos.xy,0.9*(slow_anim/2+0.5),fw);
+		outv=max(outv,sh_circle(npos.xy,0.6*(slow_anim/2+0.5),fw));
+	}
+	else if(card==7)
+	{
+		//TODO anim
 		vec2 p1=npos.xy*2;
 		for(int i=0;i<3;i++)
 		{
@@ -232,21 +326,21 @@ void main(){
 		}
 		outv=max(outv,sh_circle(npos.xy,3.3,fw*2)-sh_circle(npos.xy,3.1,fw*3));
 	}
-	else if(card==7)
+	else if(card==8)
 	{
 		float st_val=1;
 		float angle=M_PI/16;
 		float theta=atan(npos.y,npos.x);
 		float d=length(npos.xy)/4;
 		float mask=step(0.25,d);
-		float i=pMod1(d,0.1);
+		float i=pMod1(d,0.1*(slow_anim/2+0.5));
 		st_val*=pow(0.025,1);
 		vec2 np=vec2(cos(theta),sin(theta))*d;
 		float v1=sh_polyhedron(np,4,st_val,angle*i,fw/4);
 		float v2=sh_polyhedron(np,4,st_val*phi1,M_PI/4,fw/4);
 		outv=max(outv,v1-v2-mask);
 	}
-	else if(card==8)
+	else if(card==9)
 	{
 		vec2 np=npos.xy;
 		float ring=sh_circle(np,1.5,fw*2)-sh_circle(np,1,fw*2);
@@ -254,25 +348,27 @@ void main(){
 		for(int i=0;i<5;i++)
 		{
 			t_rot(np,(M_PI/5)*2);
-			float vv=shield(np-vec2(0.75,0),0.3,fw/2);
-			float v2=shield(np-vec2(0.75,0),0.25,fw/2);
+			float vv=shield(np*(2-slow_anim)-vec2(0.75,0),0.3,fw/2);
+			float v2=shield(np*(2-slow_anim)-vec2(0.75,0),0.25,fw/2);
 			ring-=v2;
 			outv=max(outv,vv);
 		}
 		outv+=ring;
 	}
-	else if(card==9)
+	else if(card==10)
 	{
 		float dd=df_polyhedron(npos.xy,7,1.25,0);
 		float dd2=df_polyhedron(npos.xy,7,1.,0);
 		outv=smoothstep(0.5,0.5+fw*1.5,max(dd,1-dd2));
 		float theta=atan(npos.y,npos.x);
 		float d=length(npos.xy);
-		outv*=(d<0.5)?(1):(smoothstep(0.5-fw*1.5,0.5+fw*1.5,cos(theta*21)));
+
+		outv*=(d<0.5)?(1):(smoothstep(0.5-fw*10,0.5+fw*10,cos(theta*21)));
 		//outv*=(d<0.9)?(1):(0);
 	}
-	else if(card==10)
+	else if(card==11)
 	{
+		fw=0.01;
 		vec2 np=npos.xy+vec2(0.25,0);
 		float d=sh_circle(np,1,fw)-sh_circle(np,0.5,fw);
 		vec2 np2=npos.xy-vec2(0.25,0);
@@ -282,9 +378,64 @@ void main(){
 		float mask2=sh_circle(np,1+w*2,fw)-sh_circle(np,0.5-w,fw);
 		outv=max(d-((np2.y>0)?(mask1):0),d2-((np.y<0)?(mask2):0));
 	}
-	else if(card==11)
+	else if (card==12)
 	{
-		outv=noise(npos.xy);
+		//NOT VERY GOOD :< does not match the others
+		float dd=grid(npos.xy,slow_anim);
+		//fw=fwidth(dd);
+		outv=dd;//smoothstep(0.5-fw/2,0.5+fw/2,dd);
+		//outv=fw*200;
+	}
+	else if (card==13)
+	{
+		float pipe_size=0.2;
+		float d=length(npos);
+		npos*=vec3((0.7-d)*4);
+		float fw2=length(fwidth(npos));
+		t_rot(npos.xy,slow_anim*M_PI*2);
+		outv=rod(npos.x,fw2,pipe_size);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+#if 0
+		t_rot(npos.xy,M_PI/4);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+		t_rot(npos.xy,M_PI/2);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+#endif
+	}
+	else if (card==14)
+	{
+		float pipe_size=0.2;
+		float d=length(npos);
+		//npos*=vec3((0.7-d)*4);
+		float r_anim=0.5+slow_anim/2;
+		float r=smoothstep(0.3*r_anim,0.5*r_anim,d);
+		r-=smoothstep(0.8*r_anim,2*r_anim*(1/d),d/0.5-0.25);
+		clamp(r,0,1);
+		#if 1
+		t_rot(npos.xy,M_PI*r);
+		float fw2=length(fwidth(npos));
+		t_rot(npos.xy,slow_anim*M_PI*2);
+		outv=rod(npos.x,fw2,pipe_size);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+
+		t_rot(npos.xy,M_PI/4);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+		t_rot(npos.xy,M_PI/2);
+		outv-=rod(npos.y,fw2,pipe_size*1.5);
+		outv=clamp(outv,0,1);
+		outv+=rod(npos.y,fw2,pipe_size);
+		#endif
+		outv*=1-smoothstep(0.97,0.98,d);
 	}
 	color = vec4(vec3(outv),1);
 }
