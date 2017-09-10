@@ -1,4 +1,4 @@
-//!program main vertex
+//!program cards vertex
 #version 330
 
 layout(location = 0) in vec3 vertexPosition_modelspace;
