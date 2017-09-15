@@ -17,6 +17,7 @@ struct shader_meta_info
     std::string type;
     GLuint gl_type;
     int filename_id;
+	bool need_default_vertex = false;
 };
 GLuint get_gl_shader_type(const std::string& type)
 {
@@ -50,7 +51,11 @@ shader_meta_info extract_info(const std::string& prog)
             if (!ret.gl_type) continue; //TODO: throw? error here
 
         }
-        if (token == "uniform")
+		else if (token == "//!default_vertex")
+		{
+			ret.need_default_vertex = true;
+		}
+        else if (token == "uniform")
         {
             ret.uniforms.push_back(line);
         }
@@ -338,15 +343,36 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
     init_uniforms(ret, prog_shaders);
     return ret;
 }
+shader_info generate_vertex_shader(shader_meta_info sm)
+{
+	shader_info ret;
+	ret.s.path = "generated";
+	ret.s.name = "generated";
+	ret.s.type = GL_VERTEX_SHADER;
+	ret.s.type_name = "vertex";
+	ret.sm.gl_type = GL_VERTEX_SHADER;
+	ret.sm.program = R"(
+	#version 330
 
+	layout(location = 0) in vec3 vertexPosition_modelspace;
+
+	varying vec3 pos;
+	void main()
+	{
+		gl_Position.xyz = vertexPosition_modelspace;
+		gl_Position.w = 1.0;
+		pos=vertexPosition_modelspace;
+	}
+)";
+	ret.s.program = ret.sm.program;
+	return ret;
+}
 std::vector<program> enum_programs()
 {
     loader_context context;
     auto shaders = enum_shaders(context);
     typedef std::map<std::string, std::vector<shader_info>> prog_info_map;
-    typedef std::map<std::string, uniform> uniform_map_type;
     prog_info_map program_map;
-    uniform_map_type uniform_map;
     for (const shader& s : shaders)
     {
         shader_meta_info info = extract_info(s.program);
@@ -356,6 +382,10 @@ std::vector<program> enum_programs()
         si.s = s;
         si.sm = info;
         program_map[info.program].push_back(si);
+		if (info.need_default_vertex)
+		{	
+			program_map[info.program].push_back(generate_vertex_shader(info));
+		}
     }
     std::vector<program> ret;
     for (prog_info_map::iterator it = program_map.begin(); it != program_map.end(); it++)

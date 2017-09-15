@@ -16,15 +16,13 @@ struct shader{
     std::string path;
     std::string name;
 
-    std::string program;
+    std::string program; //TODO: duplication with meta program
 
     GLuint id = -1;
     GLuint type = -1;
     std::string type_name;//TODO: maybe a function here?
 
     prog_status status;
-
-    
 };
 enum class uniform_type{
     t_float,t_float_clamp,t_vec3,t_vec3_norm,t_vec3_clamp,t_int,t_float_angle, last
