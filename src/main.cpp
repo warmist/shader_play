@@ -562,17 +562,9 @@ int main(int, char**)
                 int w = (int)io.DisplaySize.x;
                 int h = (int)io.DisplaySize.y;
 
-<<<<<<< HEAD
-				glReadPixels(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
-				uint32_t* last_row = tmp_buffer.data() + ((int)io.DisplaySize.x * ((int)io.DisplaySize.y - 1));
-				stbi_write_png("capture.png", (int)io.DisplaySize.x, (int)io.DisplaySize.y, 4, last_row, -4 * (int)io.DisplaySize.x);
-=======
-				tmp_buffer.resize(w*h*4);
-
+				tmp_buffer.resize(w*h * 4);
 				glReadPixels(0, 0, w,h, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
-
 				stbi_write_png("capture.png", w,h, 4, tmp_buffer.data()+w*(h-1), -4 * w);
->>>>>>> 9c37f255dff50417961fd62b48a4f0cafdad5fe4
 			}
 			ImGui::End();
             /*

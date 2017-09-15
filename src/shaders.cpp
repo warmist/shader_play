@@ -151,14 +151,13 @@ std::string load_shader(const std::string& path,loader_context& ctx)
     std::string ret;
     std::string line;
     const std::string INCLUDE = "//!include";
+	const std::string VERSION = "#version";
     int line_counter = 0;
     int fname_id = ctx.last_id;
     ctx.filenames[fname_id] = path;
     ctx.last_id++;
 	//workaround for nvidia not likeing this when using #version
-    /*ret += "\n#line 1 ";
-    ret += std::to_string(fname_id);
-    ret += "\n";*/
+
     while (std::getline(fs, line))
     {
         line_counter++;
@@ -175,6 +174,13 @@ std::string load_shader(const std::string& path,loader_context& ctx)
             ret += std::to_string(fname_id);
             ret += "\n";
         }
+		else if (token == VERSION)
+		{
+			ret += line + "\n";
+			ret += "\n#line "+std::to_string(line_counter)+" ";
+			ret += std::to_string(fname_id);
+			ret += "\n";
+		}
         else
         {
             ret += line;
@@ -226,6 +232,7 @@ void init_uniforms(program& p, const std::vector<shader_info>& prog_shaders)
 }
 void get_shader_log(shader& s, loader_context& ctx)
 {
+	//TODO: ATI errors here. Should implement nvidia too
     int InfoLogLength;
     glGetShaderiv(s.id, GL_INFO_LOG_LENGTH, &InfoLogLength);
     std::vector<char> log;
