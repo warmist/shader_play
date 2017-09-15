@@ -235,15 +235,15 @@ void init_uniforms(program& p, const std::vector<shader_info>& prog_shaders)
         //TODO: check id here;
     }
 }
-void get_shader_log(shader& s, loader_context& ctx)
+void get_shader_log(shader& s,GLuint shader_id, loader_context& ctx)
 {
 	//TODO: ATI errors here. Should implement nvidia too
     int InfoLogLength;
-    glGetShaderiv(s.id, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &InfoLogLength);
     std::vector<char> log;
     log.resize(InfoLogLength + 1);
     
-    glGetShaderInfoLog(s.id, InfoLogLength, NULL, &log[0]);
+    glGetShaderInfoLog(shader_id, InfoLogLength, NULL, &log[0]);
     std::string ret;
     std::stringstream fs(log.data());
     
@@ -292,7 +292,7 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
     ret.name = name;
     ret.id = glCreateProgram();
     if (ret.id == 0);//TODO: error
-
+	std::vector<GLuint> shader_handles;
     for (const auto& info : prog_shaders)
     {
         const shader& ts = info.s;
@@ -304,7 +304,7 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
         ret.shaders.push_back(ts);
         shader &tmp_s = ret.shaders.back();
        
-        tmp_s.id = s_id;
+		shader_handles.push_back(s_id);
         tmp_s.type_name = info.sm.type;
 
         
@@ -313,7 +313,7 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
         glCompileShader(s_id);
         // Check Shader
         glGetShaderiv(s_id, GL_COMPILE_STATUS, &tmp_s.status.result);
-        get_shader_log(tmp_s, ctx);
+        get_shader_log(tmp_s,s_id, ctx);
 
         glAttachShader(ret.id, s_id);
         
@@ -331,6 +331,10 @@ program init_program(const std::vector<shader_info>& prog_shaders, const std::st
         ret.status.log = std::string(log.data(), log.size()); //TODO: a bit ugly here
         //TODO: bail on error?
     }
+	for (auto s : shader_handles)
+	{
+		glDeleteShader(s);
+	}
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::resolution)] = glGetUniformLocation(ret.id, "eng_resolution");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::time)] = glGetUniformLocation(ret.id, "eng_time");
     ret.predef_uniforms[static_cast<int>(predefined_uniforms::mouse)] = glGetUniformLocation(ret.id, "eng_mouse");
@@ -351,6 +355,7 @@ shader_info generate_vertex_shader(shader_meta_info sm)
 	ret.s.type = GL_VERTEX_SHADER;
 	ret.s.type_name = "vertex";
 	ret.sm.gl_type = GL_VERTEX_SHADER;
+	ret.sm.type = "vertex";
 	ret.sm.program = R"(
 	#version 330
 
@@ -365,6 +370,7 @@ shader_info generate_vertex_shader(shader_meta_info sm)
 	}
 )";
 	ret.s.program = ret.sm.program;
+
 	return ret;
 }
 std::vector<program> enum_programs()
@@ -398,10 +404,6 @@ void free_programs(std::vector<program>& programs)
 {
     for (auto p : programs)
     {
-        for (auto s : p.shaders)
-        {
-            glDeleteShader(s.id);
-        }
         glDeleteProgram(p.id);
     }
 }

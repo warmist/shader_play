@@ -18,7 +18,6 @@ struct shader{
 
     std::string program; //TODO: duplication with meta program
 
-    GLuint id = -1;
     GLuint type = -1;
     std::string type_name;//TODO: maybe a function here?
 

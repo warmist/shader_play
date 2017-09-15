@@ -186,7 +186,7 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                 ImGui::Separator();
                 for (const shader& s : p.shaders)
                 {
-                    ImGui::Text("Shader: %s(%s) Id:%d", s.name.c_str(), s.type_name.c_str(), s.id);
+                    ImGui::Text("Shader: %s(%s)", s.name.c_str(), s.type_name.c_str());
                     print_prog_status(s.status);
                     ImGui::Separator();
                 }
