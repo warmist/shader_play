@@ -350,7 +350,7 @@ void APIENTRY dgb_callback(GLenum source, GLenum type, GLuint id, GLenum severit
     __debugbreak();
 }
 std::vector<uint32_t> tmp_buffer;
-jo_gif_t gif;
+std::vector<uint8_t> tmp_buffer_video;
 int main(int, char**)
 {
     // Setup window
@@ -416,6 +416,8 @@ int main(int, char**)
     float recompile_timer = 0;
     bool first_down_frame = true;
     bool saving_gif=false;
+	int gif_frames = 0;
+	const int max_frames = 100;
 	std::string was_name;
     while (!glfwWindowShouldClose(window))
     {
@@ -571,23 +573,35 @@ int main(int, char**)
             {
                 if(saving_gif)
                 {
-                    int w = (int)io.DisplaySize.x;
-                    int h = (int)io.DisplaySize.y;
-                    gif = jo_gif_start("capture.gif", w, h, 0, 255);
+					int w = (int)io.DisplaySize.x;
+					int h = (int)io.DisplaySize.y;
+					tmp_buffer_video.resize(w*h * 4 * max_frames);
+                    
                 }
                 else
                 {
+					int w = (int)io.DisplaySize.x;
+					int h = (int)io.DisplaySize.y;
+					jo_gif_t gif = jo_gif_start("capture.gif", w, h, 0, 255);
+					for(int i=0;i<gif_frames;i++)
+						jo_gif_frame(&gif, (unsigned char*)tmp_buffer_video.data()+w*h*4*i, 4, false);
                     jo_gif_end(&gif);
                 }
             }
             if(saving_gif)
             {
-				int w = (int)io.DisplaySize.x;
-				int h = (int)io.DisplaySize.y;
-                tmp_buffer.resize(w*h*4);
-                glReadPixels(0, 0, w,h, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
-
-                jo_gif_frame(&gif, (unsigned char*)tmp_buffer.data(), 4, false); // frame 3, ...
+				if (gif_frames < max_frames)
+				{
+					
+					int w = (int)io.DisplaySize.x;
+					int h = (int)io.DisplaySize.y;
+					tmp_buffer.resize(w*h * 4);
+					glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, tmp_buffer.data());
+					memcpy(tmp_buffer_video.data() + w*h * 4 * gif_frames, tmp_buffer.data(), w*h * 4);
+					gif_frames++;
+					
+				}
+                
             }
 			ImGui::End();
             /*
