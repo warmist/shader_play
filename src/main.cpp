@@ -417,7 +417,7 @@ int main(int, char**)
     bool first_down_frame = true;
     bool saving_gif=false;
 	int gif_frames = 0;
-	const int max_frames = 100;
+	int max_frames = 100;
 	std::string was_name;
     while (!glfwWindowShouldClose(window))
     {
@@ -603,6 +603,13 @@ int main(int, char**)
 				}
                 
             }
+			if(!saving_gif)
+			{
+				ImGui::SameLine();
+				ImGui::InputInt("Frames", &max_frames);
+				if (max_frames <= 0)max_frames = 1;
+				if (max_frames > 5000)max_frames = 5000;
+			}
 			ImGui::End();
             /*
 
