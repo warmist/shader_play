@@ -576,7 +576,7 @@ int main(int, char**)
 					int w = (int)io.DisplaySize.x;
 					int h = (int)io.DisplaySize.y;
 					tmp_buffer_video.resize(w*h * 4 * max_frames);
-                    
+					gif_frames = 0;
                 }
                 else
                 {
