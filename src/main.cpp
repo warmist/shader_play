@@ -234,6 +234,9 @@ void make_gui(std::vector<program>& programs, program*& current_program)
                 case uniform_type::t_vec3_norm:
                     normalized_slider3(u.name.c_str(), u.data.f3);
                     break;
+				case uniform_type::t_vec3_color:
+					ImGui::ColorEdit3(u.name.c_str(), u.data.f3);
+					break;
 				case uniform_type::t_int:
 					if (u.has_max && u.has_min)
 					{
@@ -513,6 +516,7 @@ int main(int, char**)
                 case uniform_type::t_vec3: 
                 case uniform_type::t_vec3_clamp:
                 case uniform_type::t_vec3_norm:
+				case uniform_type::t_vec3_color:
                     glUniform3fv(u.id, 1, u.data.f3);
                 default:;
                 }

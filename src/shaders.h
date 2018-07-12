@@ -24,7 +24,7 @@ struct shader{
     prog_status status;
 };
 enum class uniform_type{
-    t_float,t_float_clamp,t_vec3,t_vec3_norm,t_vec3_clamp,t_int,t_float_angle, last
+    t_float,t_float_clamp,t_vec3,t_vec3_norm,t_vec3_clamp,t_int,t_float_angle,t_vec3_color, last
 };
 struct uniform{
     GLuint id = -1;

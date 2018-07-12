@@ -107,6 +107,8 @@ uniform parse_uniform(const std::string& line)
 			ret.type = uniform_type::t_vec3_clamp;
 		if (token == "!clamp" && ret.type == uniform_type::t_float)
 			ret.type = uniform_type::t_float_clamp;
+		if (token == "!col" && ret.type == uniform_type::t_vec3)
+			ret.type = uniform_type::t_vec3_color;
 		if (token == "!max")
 		{
 			if (ss >> token)
